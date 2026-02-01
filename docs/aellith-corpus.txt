@@ -1,0 +1,14 @@
+en mia-a rau-b ke p1.
+in mia-a lin-c he p2.
+po mia-a rau-b lin-c ke p0.
+th mia-a rau-b lin-c ku p2.
+co mia-a lin-c ka p1.
+ce mia-a lin-c ke p0.
+ca mia-a lin-c ke p1.
+ri mia-a evt-c ku na p2.
+sa mia-a evt-c ke p0.
+tr mia-a org-b ke p1.
+re mia-a org-b lin-c ka p2.
+sA pm co mia-a lin-c ke p1.
+sB pr th mia-a rau-b lin-c ku p2.
+sC pc ce mia-a lin-c ke p0.
