@@ -110,7 +110,10 @@ the updated disk and next state. Exact-mode `nth` / Scheme `list-ref` access thi
 numeric data at nonnegative literal integer indices, allowing a compiled
 kernel to reuse the state across updates without relying on dialect-specific
 numeric index coercions.
-Joint direction selection and coordinate-group scheduling remain unfinished.
+`network-groups` and `network-train-step` compile the grouped scheduler too:
+affine active-term groups, conservative general polynomial groups, persistent
+awaiting-turn marks, explicit draws, and simultaneous first-vertex clipping.
+Joint direction selection and minimal nonlinear coupling groups remain unfinished.
 Unused p-adic code is not included in purely numeric executables.
 This mode does not claim arbitrary namespace, macro, effect, or recursive-program
 support, and does not expand the common contract of the other dialect pairs.

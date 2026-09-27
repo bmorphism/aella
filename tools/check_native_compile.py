@@ -14,6 +14,8 @@ a=p.parse_args()
 if a.compile_timeout<=0:p.error('--compile-timeout must be positive')
 if a.only and not a.output:p.error("--only requires --output to keep partial results separate")
 fixtures=[
+ ('grouped-training', '(let [a (cossack.padic/network-train-step [] [(cossack.padic/disk 3 0 1/2) (cossack.padic/disk 3 0 2/5)] [0 0] x [0 0 0 1/100] [] [[0 0] [0 0]])] (cossack.padic/network-loss [] (nth a 0) [0 0]))',
+  '(let* ((a (cx-network-train-step (list) (list (cx-disk 3 0 1/2) (cx-disk 3 0 2/5)) (list 0 0) x (list 0 0 0 1/100) (list) (list (list 0 0) (list 0 0))))) (cx-network-loss (list) (list-ref a 0) (list 0 0)))',[('1/10','2/5'),('1','23/60')]),
  ('momentum-state', '(let [a (cossack.padic/network-optimizer-step [] [(cossack.padic/disk 3 0 1/2)] [0] 0 x [0 1/2 1/2 1/100] [] 0) b (cossack.padic/network-optimizer-step [] [(nth a 0)] [0] 0 x [0 1/2 1/2 1/100] (nth a 1) 0)] (cossack.padic/distance (nth b 0) (cossack.padic/disk 3 0 0)))',
   '(let* ((a (cx-network-optimizer-step (list) (list (cx-disk 3 0 1/2)) (list 0) 0 x (list 0 1/2 1/2 1/100) (list) 0)) (b (cx-network-optimizer-step (list) (list (list-ref a 0)) (list 0) 0 x (list 0 1/2 1/2 1/100) (list-ref a 1) 0))) (cx-distance (list-ref b 0) (cx-disk 3 0 0)))',[('1/10','7/16'),('1','1/9')]),
  ('adam-state', '(let [a (cossack.padic/network-optimizer-step [] [(cossack.padic/disk 3 0 1/2)] [0] 0 x [1 1/2 1/2 1/2] [] 0)] (cossack.padic/distance (nth a 0) (cossack.padic/disk 3 0 0)))',

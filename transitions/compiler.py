@@ -16,6 +16,8 @@ PROFILES=('clojure','babashka','jank','cossack','clojurescript-nbb','basilisp','
 OPS={'+','-','*','=','<','<=','>','>=','not'}
 EXACT_OPS={"+'":'+',"-'":'-',"*'":'*','/':'/'}
 NATIVE_OPS={
+ 'cossack.padic/network-groups':('cx-network-groups',3),
+ 'cossack.padic/network-train-step':('cx-network-train-step',7),
  'nth':('list-ref',2),
  'cossack.padic/network-optimizer-step':('cx-network-optimizer-step',8),
  'cossack.padic/network-coordinate-step':('cx-network-coordinate-step',5),
