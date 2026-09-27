@@ -1,7 +1,7 @@
 {
-  "compiled_programs": 10,
-  "runtime_value_checks": 22,
-  "invalid_argument_checks": 30,
+  "compiled_programs": 16,
+  "runtime_value_checks": 34,
+  "invalid_argument_checks": 48,
   "frontends": [
     "cossack",
     "gambit"

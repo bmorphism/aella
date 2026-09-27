@@ -24,6 +24,9 @@ NATIVE_OPS={
  'cossack.padic/mul':('cx-disk-mul',2),
  'cossack.padic/power':('cx-power',2),
  'cossack.padic/distance':('cx-distance',2),
+ 'cossack.padic/geodesic':('cx-geodesic',3),
+ 'cossack.padic/direct-loss-step':('cx-direct-loss-step',3),
+ 'cossack.padic/direct-loss-slope':('cx-direct-loss-slope',3),
  'cossack.padic/norm':('cx-norm',2),
  'cossack.padic/valuation':('cx-valuation',2),
 }

@@ -89,6 +89,10 @@ implementation; it is required for p-adic operations. This shares disk geometry
 with the interpreter instead of substituting a finite residue approximation.
 Compilation checks exercise both surface syntaxes with large runtime inputs,
 lexical capture, exact complex multiplication, and p-adic power/distance.
+The shared p-adic calls also include unit-speed geodesics, the direct-loss
+directional derivative, and a scalar direct-loss proximal update. These are
+tested with runtime parameters from both source syntaxes; they do not implement
+general model backpropagation or the paper's multi-parameter optimizers.
 This mode does not claim arbitrary namespace, macro, effect, or recursive-program
 support, and does not expand the common contract of the other dialect pairs.
 

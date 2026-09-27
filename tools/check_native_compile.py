@@ -18,6 +18,12 @@ fixtures=[
   '(imag-part (* x (make-rectangular 3 -4)))',[('1+2i','2'),('1/3+2/5i','-2/15')]),
  ('disk',"(cossack.padic/distance (cossack.padic/power (cossack.padic/disk 2 1 x) 2) (cossack.padic/disk 2 1 0))",
   '(cx-distance (cx-power (cx-disk 2 1 x) 2) (cx-disk 2 1 0))',[('1/2','1/4'),('1/4','1/8')]),
+ ('geodesic','(cossack.padic/distance (cossack.padic/disk 3 0 0) (cossack.padic/geodesic (cossack.padic/disk 3 0 0) (cossack.padic/disk 3 1 0) x))',
+  '(cx-distance (cx-disk 3 0 0) (cx-geodesic (cx-disk 3 0 0) (cx-disk 3 1 0) x))',[('1/2','1/2'),('3/2','3/2')]),
+ ('proximal','(cossack.padic/distance (cossack.padic/direct-loss-step (cossack.padic/disk 3 0 0) (cossack.padic/disk 3 1 0) x) (cossack.padic/disk 3 1 0))',
+  '(cx-distance (cx-direct-loss-step (cx-disk 3 0 0) (cx-disk 3 1 0) x) (cx-disk 3 1 0))',[('1','3/2'),('10','0')]),
+ ('slope','(cossack.padic/direct-loss-slope (cossack.padic/disk 3 0 1) (cossack.padic/disk 3 0 0) (cossack.padic/disk 3 x 0))',
+  '(cx-direct-loss-slope (cx-disk 3 0 1) (cx-disk 3 0 0) (cx-disk 3 x 0))',[('0','-1/2'),('1','1/2')]),
  ('norm','(cossack.padic/norm 3 x)','(cx-norm 3 x)',[('5/9','9'),('81','1/81')]),
 ]
 executions=0
