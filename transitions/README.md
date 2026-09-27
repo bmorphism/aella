@@ -93,6 +93,15 @@ The shared p-adic calls also include unit-speed geodesics, the direct-loss
 directional derivative, and a scalar direct-loss proximal update. These are
 tested with runtime parameters from both source syntaxes; they do not implement
 general model backpropagation or the paper's multi-parameter optimizers.
+Sparse multivariate polynomial stages and their radial directional derivatives
+also compile through the shared library. In exact native mode, Clojure vector
+literals and Scheme `(list ...)` supply the nested numeric data for these APIs;
+this is data transport, not a general collection or callable-vector compiler.
+Polynomial stages can be composed into networks with `network-loss` and
+`network-slope`, using the shared library's forward directional differentiation
+and summed direct loss. Stagewise dependency bounds remain explicit; this is
+not arbitrary analytic reverse-mode differentiation.
+Unused p-adic code is not included in purely numeric executables.
 This mode does not claim arbitrary namespace, macro, effect, or recursive-program
 support, and does not expand the common contract of the other dialect pairs.
 

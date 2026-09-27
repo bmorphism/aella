@@ -19,6 +19,10 @@ NATIVE_OPS={
  'cossack.number/complex':('make-rectangular',2),
  'cossack.number/real-part':('real-part',1),
  'cossack.number/imag-part':('imag-part',1),
+ 'cossack.padic/network-loss':('cx-network-loss',3),
+ 'cossack.padic/network-slope':('cx-network-slope',4),
+ 'cossack.padic/polynomial':('cx-polynomial',2),
+ 'cossack.padic/polynomial-slope':('cx-polynomial-slope',3),
  'cossack.padic/disk':('cx-disk',3),
  'cossack.padic/add':('cx-disk-add',2),
  'cossack.padic/mul':('cx-disk-mul',2),
@@ -31,7 +35,7 @@ NATIVE_OPS={
  'cossack.padic/valuation':('cx-valuation',2),
 }
 RESERVED=OPS|set(EXACT_OPS)|set(NATIVE_OPS)|{v[0] for v in NATIVE_OPS.values()}|{'if','let','let*','fn','lambda','inc','dec','true','false','#t','#f',
-    'nil','def','quote','var','do','try','throw','catch','finally','loop','loop*',
+    'list','nil','def','quote','var','do','try','throw','catch','finally','loop','loop*',
     'recur','new','set!','monitor-enter','monitor-exit','deftype*','reify*','case*',
     'import*','fn*','define','begin','quasiquote','unquote','unquote-splicing',
     'cond','and','or','case','delay','letrec','letrec*','let-values','let*-values',
@@ -85,6 +89,7 @@ def lower(source, profile, *, exact=False, parameters=()):
             raise Unsupported('Expected a non-reserved, unqualified binding name')
         return x.name
     def walk(x,env):
+        if exact and isinstance(x,Vec):return ('data-list',tuple(walk(a,env) for a in x.items))
         if isinstance(x,Fraction):return ('ratio',x.numerator,x.denominator)
         if isinstance(x,int):return ('int',x)
         if isinstance(x,Sym):
@@ -95,6 +100,7 @@ def lower(source, profile, *, exact=False, parameters=()):
         if not isinstance(x,tuple) or not x:raise Unsupported('Expected a supported expression')
         head=x[0].name if isinstance(x[0],Sym) else None
         args=x[1:]
+        if exact and scheme and head=='list':return ('data-list',tuple(walk(a,env) for a in args))
         native_ops={v[0]:v for v in NATIVE_OPS.values()} if scheme else NATIVE_OPS
         if exact and head in native_ops:
             name,arity=native_ops[head]
@@ -194,6 +200,7 @@ def emit(ir,profile, *, exact=False):
     def go(n):
         kind=n[0]
         if kind=='int':return str(n[1])
+        if kind=='data-list':return '(list'+(' ' if n[1] else '')+' '.join(go(v) for v in n[1])+')'
         if kind=='ratio':return str(n[1])+'/'+str(n[2])
         if kind=='bool':return ('#t' if n[1] else '#f') if scheme else ('true' if n[1] else 'false')
         if kind=='var':return n[1]
@@ -221,11 +228,12 @@ def native_program(expression, parameters, numeric_library=None):
 (define (aella-op op . args) (apply op (map aella-exact args)))
 (define aella-args (map (lambda (s) (aella-exact (string->number s))) (cdr (command-line))))
 """
-    if re.search(r'\(cx-',expression) and numeric_library is None:
+    uses_library=bool(re.search(r'\(cx-',expression))
+    if uses_library and numeric_library is None:
         raise Unsupported('P-adic compilation requires --numeric-library pointing to Cossack gambit/numeric.scm')
     if numeric_library is not None:
         library=Path(numeric_library).resolve(strict=True)
-        prelude='(include '+json.dumps(str(library))+')\n'+prelude
+        if uses_library:prelude='(include '+json.dumps(str(library))+')\n'+prelude
     return prelude+'(if (not (= (length aella-args) '+str(len(parameters))+')) (error "Wrong argument count"))\n'+ '(write (apply (lambda ('+' '.join(parameters)+') '+expression+') aella-args)) (newline)\n'
 
 def main():
