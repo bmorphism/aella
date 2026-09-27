@@ -27,10 +27,16 @@ def main():
     parser.add_argument('--cossack', default=os.environ.get('COSSACK', 'cossack'))
     parser.add_argument('--gsi', default='gsi')
     parser.add_argument('--gsc', default='gsc')
+    parser.add_argument('--basilisp', default='basilisp')
+    parser.add_argument('--squint', default='squint')
+    parser.add_argument('--squint-project',type=Path,default=ROOT,
+                        help='Project directory with squint-cljs installed for Node module resolution')
     parser.add_argument('--output', type=Path, default=ROOT/'results/transitions.json')
+    parser.add_argument('--require-all',action='store_true',help='Fail if any runtime or Gambit compilation is unverified')
     args = parser.parse_args()
     binaries = {'clojure':'clojure', 'babashka':'bb', 'jank':'jank',
-                'cossack':args.cossack, 'clojurescript-nbb':'nbb', 'gambit':args.gsi}
+                'cossack':args.cossack, 'clojurescript-nbb':'nbb', 'gambit':args.gsi,
+                'basilisp':args.basilisp,'squint':args.squint}
     report = {'fixtures':len(PROGRAMS), 'profiles':list(PROFILES),
               'ordered_pairs':len(PROFILES)*(len(PROFILES)-1), 'runtimes':{}}
     with tempfile.TemporaryDirectory(prefix='aella-check-') as tmp:
@@ -40,6 +46,7 @@ def main():
             if not binary:
                 report['runtimes'][target] = {'status':'unverified', 'reason':'No configured executable'}
                 continue
+            binary=str(Path(binary).resolve())
             forms, expected = [], []
             for source in PROFILES:
                 if source == target: continue
@@ -58,14 +65,22 @@ def main():
                 if target == 'jank':command = [binary,'run',str(file)]
                 elif target == 'cossack':command = [binary,'eval',code]
                 elif target == 'clojure':command = [binary,'-M',str(file)]
+                elif target == 'basilisp':command = [binary,'run',str(file)]
+                elif target == 'squint':command = [binary,'eval',code]
                 else:command = [binary,str(file)]
-            result = subprocess.run(command,text=True,capture_output=True,timeout=180)
+            result = subprocess.run(command,text=True,capture_output=True,timeout=180,
+                                    cwd=args.squint_project.resolve() if target=='squint' else ROOT)
             actual = result.stdout.strip().splitlines()
             if target == 'cossack' and actual and actual[-1]=='nil':actual.pop()
             if target == 'gambit':actual=[{'#t':'true','#f':'false'}.get(x,x) for x in actual]
             if result.returncode or actual != expected:
                 raise RuntimeError(f'{target}: exit={result.returncode}, stdout={result.stdout!r}, stderr={result.stderr!r}')
             report['runtimes'][target] = {'status':'passed', 'executable':Path(binary).name, 'expressions':len(forms)}
+            if target=='basilisp':
+                report['runtimes'][target]['version']=subprocess.check_output([binary,'version'],text=True).strip()
+            if target=='squint':
+                manifest=args.squint_project/'node_modules/squint-cljs/package.json'
+                report['runtimes'][target]['runtime_package_version']=json.loads(manifest.read_text())['version']
             print(f'PASS {target}: {len(forms)} expressions',flush=True)
         gsc=shutil.which(args.gsc)
         report['gambit_compilation']={'status':'unverified'}
@@ -83,6 +98,9 @@ def main():
             report['gambit_compilation']={'status':'passed','frontends':['clojure','gambit']}
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(report,indent=2)+'\n')
+    if args.require_all and (any(r['status']!='passed' for r in report['runtimes'].values())
+                             or report['gambit_compilation']['status']!='passed'):
+        raise SystemExit('Required runtime coverage is incomplete; see '+str(args.output))
     print(args.output)
 
 if __name__=='__main__':main()

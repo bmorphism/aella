@@ -34,16 +34,20 @@
     },
     "clojurescript-nbb": {
       "status": "passed",
-      "executable": "nbb",
+      "executable": "cli.js",
       "expressions": 56
     },
     "basilisp": {
-      "status": "unverified",
-      "reason": "No configured executable"
+      "status": "passed",
+      "executable": "basilisp",
+      "expressions": 56,
+      "version": "Basilisp 0.5.1"
     },
     "squint": {
-      "status": "unverified",
-      "reason": "No configured executable"
+      "status": "passed",
+      "executable": "node_cli.js",
+      "expressions": 56,
+      "runtime_package_version": "0.14.210"
     },
     "gambit": {
       "status": "passed",

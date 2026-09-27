@@ -35,8 +35,30 @@ The compile option emits Scheme, invokes Gambit's native compiler, and produces
 an executable that prints the result. Both Gambit and Clojure surface inputs
 use this compilation path. The runtime checker checks actual output separately
 from IR roundtrips, and writes `results/transitions.json`. Unavailable runtimes
-are reported as unverified, never as passing. Basilisp and Squint currently
-have syntax profiles only; their execution adapters remain to be implemented.
+are reported as unverified, never as passing. `--require-all` turns any missing
+runtime or native compiler into a failing check. All eight profiles now have
+execution adapters and pass the checked-in fixture suite: 448 executions across
+56 ordered pairs. This is evidence for the admitted subset, not full dialect
+conformance.
+
+Basilisp 0.5.1 and Squint 0.14.210 were tested using Python 3.12.8 and Node
+24.11.0. Their dependency manifests are pinned under `runtime-deps/`. Install
+them locally without changing global toolchains:
+
+```sh
+uv venv --python 3.12 target/basilisp-env
+uv pip install --python target/basilisp-env/bin/python \
+  -r transitions/runtime-deps/basilisp-requirements.txt
+mkdir -p target/squint
+cp transitions/runtime-deps/package*.json target/squint/
+npm ci --prefix target/squint --ignore-scripts
+```
+
+Pass `--basilisp target/basilisp-env/bin/basilisp`,
+`--squint target/squint/node_modules/.bin/squint`, and
+`--squint-project target/squint` to the runtime checker, together with the
+Cossack and Gambit executable paths shown above. Squint needs a project with
+its runtime dependency available for Node's module resolution.
 
 ## Dynamic native numeric compilation
 
