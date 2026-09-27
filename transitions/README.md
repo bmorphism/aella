@@ -236,3 +236,22 @@ This implementation does **not** define the double category Cat#, prove a
 geometric morphism, or construct Optic(Para(Cat#)). Those claims require explicit
 objects, horizontal and vertical maps, cells, a monoidal action, and laws. The
 roundtrip and execution checks establish finite observations, not those proofs.
+
+### Explicit training precision
+
+The exact-native compiler maps `cossack.padic/round-training` to
+`cx-round-training` with three arguments: disks, scheduler state, and binary
+significant bits (exact integer >= 2). It returns projected disks and state;
+callers explicitly feed these into the next update. Ordinary training remains
+exact. Centers, p-power vertices, configuration, counters, history identities,
+child labels, and queue marks remain exact. Radii and numeric optimizer summaries
+are rounded; exponents remain unbounded. The per-scalar relative error bound is
+`2^-bits`, not a global trajectory bound or a fixed machine-word storage bound.
+
+Run `tools/check_compiled_precision.py --gsc PATH --numeric-library PATH` to
+compile checkpoint-free 40-step two-score classification trajectories from both
+Cossack and Scheme, exercising GD, Momentum, and Adam with 64 significant bits.
+The test also checks initial-state behavior and rejects invalid precision,
+optimizer modes, and argument counts. This projection is an explicit numerical
+operation, not a proof that it preserves exact optimizer trajectories or defines
+a geometric morphism.

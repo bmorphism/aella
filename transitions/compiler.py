@@ -19,6 +19,7 @@ SRFI141_MODES=('balanced','ceiling','floor','round','truncate','euclidean')
 SRFI141_PAIRS={mode+'/' for mode in SRFI141_MODES}
 SRFI141_NAMES={mode+suffix for mode in SRFI141_MODES for suffix in ('/','-quotient','-remainder')}
 NATIVE_OPS={
+ 'cossack.padic/round-training':('cx-round-training',3),
  'cossack.padic/classification-batch-loss':('cx-classification-batch-loss',2),
  'cossack.padic/classification-batch-slope':('cx-classification-batch-slope',3),
  'cossack.padic/classification-batch-groups':('cx-classification-batch-groups',2),
