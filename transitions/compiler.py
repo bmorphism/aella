@@ -19,6 +19,12 @@ SRFI141_MODES=('balanced','ceiling','floor','round','truncate','euclidean')
 SRFI141_PAIRS={mode+'/' for mode in SRFI141_MODES}
 SRFI141_NAMES={mode+suffix for mode in SRFI141_MODES for suffix in ('/','-quotient','-remainder')}
 NATIVE_OPS={
+ 'cossack.padic/array':('cx-array',4),
+ 'cossack.padic/array-add':('cx-array-add',2),
+ 'cossack.padic/array-sub':('cx-array-sub',2),
+ 'cossack.padic/array-mul':('cx-array-mul',2),
+ 'cossack.padic/array-neg':('cx-array-neg',1),
+ 'cossack.padic/array-power':('cx-array-power',2),
  'cossack.padic/neg':('cx-disk-neg',1),
  'cossack.padic/sub':('cx-disk-sub',2),
  'cossack.padic/prime':('cx-disk-prime',1),

@@ -145,6 +145,17 @@ These division calls retain the integer-argument and nonzero-divisor contract.
 `tools/check_native_srfi141.py` checks all procedures against an independent
 integer oracle and direct Gambit, including rounding ties, negative divisors,
 and integers exceeding 4,096 bits. No p-adic library is needed for these calls.
+Exact-native mode also compiles shaped p-adic arrays through the shared
+library: `cossack.padic/array`, `array-add`, `array-sub`, `array-mul`,
+`array-neg`, and `array-power` (Scheme names `cx-array`, etc.). Construction
+uses `prime shape centers radii`; the result is `(prime shape disks)` in
+Scheme numeric-data notation. Fields are scalars or flat row-major lists of
+the shape's size. Binary operations use trailing-axis broadcasting, retain
+empty axes, and require equal primes. Rank-zero arrays provide scalar operands.
+Powers use the correlated scalar disk rule rather than repeated independent
+multiplication. `tools/check_native_arrays.py` exercises all six operations
+from both syntaxes with runtime numeric parameters and invalid inputs.
+
 Exact-native mode supports Clojure `loop/recur` and function-level `recur`, plus
 tail-recursive Scheme named `let`. Recursion points have checked arity and
 tail position. Recur arguments are evaluated before simultaneous rebinding;
