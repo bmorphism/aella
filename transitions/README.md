@@ -103,8 +103,14 @@ and summed direct loss. Stagewise dependency bounds remain explicit; this is
 not arbitrary analytic reverse-mode differentiation.
 `network-coordinate-step` also compiles: it selects the least directional slope
 for one explicit coordinate and clips the update at the next vertex. The
-selected radius must be positive. This API returns the updated disk; joint
-direction selection and Momentum/Adam remain outside its contract.
+selected radius must be positive. This API returns the updated disk.
+`network-optimizer-step` additionally carries Momentum/Adam state using the
+shared backend's appendix G.1 recurrences and an explicit tie draw. It returns
+the updated disk and next state. Exact-mode `nth` / Scheme `list-ref` access this
+numeric data at nonnegative literal integer indices, allowing a compiled
+kernel to reuse the state across updates without relying on dialect-specific
+numeric index coercions.
+Joint direction selection and coordinate-group scheduling remain unfinished.
 Unused p-adic code is not included in purely numeric executables.
 This mode does not claim arbitrary namespace, macro, effect, or recursive-program
 support, and does not expand the common contract of the other dialect pairs.

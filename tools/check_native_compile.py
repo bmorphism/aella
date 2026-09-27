@@ -8,10 +8,16 @@ p=argparse.ArgumentParser()
 p.add_argument('--gsc',required=True)
 p.add_argument('--only',help='Comma-separated fixture names; requires --output')
 p.add_argument('--output',type=Path)
+p.add_argument('--compile-timeout',type=float,default=300,help='Seconds allowed per native compilation (default: 300)')
 p.add_argument('--numeric-library',type=Path,required=True)
 a=p.parse_args()
+if a.compile_timeout<=0:p.error('--compile-timeout must be positive')
 if a.only and not a.output:p.error("--only requires --output to keep partial results separate")
 fixtures=[
+ ('momentum-state', '(let [a (cossack.padic/network-optimizer-step [] [(cossack.padic/disk 3 0 1/2)] [0] 0 x [0 1/2 1/2 1/100] [] 0) b (cossack.padic/network-optimizer-step [] [(nth a 0)] [0] 0 x [0 1/2 1/2 1/100] (nth a 1) 0)] (cossack.padic/distance (nth b 0) (cossack.padic/disk 3 0 0)))',
+  '(let* ((a (cx-network-optimizer-step (list) (list (cx-disk 3 0 1/2)) (list 0) 0 x (list 0 1/2 1/2 1/100) (list) 0)) (b (cx-network-optimizer-step (list) (list (list-ref a 0)) (list 0) 0 x (list 0 1/2 1/2 1/100) (list-ref a 1) 0))) (cx-distance (list-ref b 0) (cx-disk 3 0 0)))',[('1/10','7/16'),('1','1/9')]),
+ ('adam-state', '(let [a (cossack.padic/network-optimizer-step [] [(cossack.padic/disk 3 0 1/2)] [0] 0 x [1 1/2 1/2 1/2] [] 0)] (cossack.padic/distance (nth a 0) (cossack.padic/disk 3 0 0)))',
+  '(let* ((a (cx-network-optimizer-step (list) (list (cx-disk 3 0 1/2)) (list 0) 0 x (list 1 1/2 1/2 1/2) (list) 0))) (cx-distance (list-ref a 0) (cx-disk 3 0 0)))',[('1/10','9/20'),('1','1/3')]),
  ('square',"(let [f (fn [y] (*' y y))] (+' (f x) 1/3))",
   '(let* ((f (lambda (y) (* y y)))) (+ (f x) 1/3))',
   [(str(x),str(Fraction(x*x)+Fraction(1,3))) for x in [0,-7,10**100, -(10**77+9)]]),
@@ -50,7 +56,7 @@ with tempfile.TemporaryDirectory(prefix='aella-native-') as tmp:
   for syntax,source in [('cossack',clj),('gambit',scm)]:
    path=tmp/(name+'.'+syntax);path.write_text(source)
    exe=tmp/(name+'-'+syntax)
-   subprocess.run([sys.executable,str(ROOT/'transitions/compiler.py'),'--from',syntax,'--to','gambit',str(path),'--exact','--parameters','x','--compile-to',str(exe),'--gsc',a.gsc,'--numeric-library',str(a.numeric_library)],check=True,timeout=90)
+   subprocess.run([sys.executable,str(ROOT/'transitions/compiler.py'),'--from',syntax,'--to','gambit',str(path),'--exact','--parameters','x','--compile-to',str(exe),'--gsc',a.gsc,'--numeric-library',str(a.numeric_library)],check=True,timeout=a.compile_timeout)
    for arg,expected in cases:
     actual=subprocess.check_output([str(exe),arg],text=True,timeout=10).strip()
     assert actual==expected,(name,syntax,arg,expected,actual)

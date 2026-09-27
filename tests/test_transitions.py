@@ -32,6 +32,8 @@ class Transitions(unittest.TestCase):
  def test_native_contract_rejections(self):
   for text,profile,parameters in [
       ('(+ x 1)','cossack',['x']), ('1N','gambit',[]),
+      ('(nth [1 2] 1/2)','cossack',[]), ('(nth [1 2] x)','cossack',['x']),
+      ('(list-ref (list 1 2) -1)','gambit',[]),
       ("(+' 1 2)",'gambit',[]), ('(if x 1 2)','cossack',['x']),
       ('x','cossack',['x','x']), ('aella-op','cossack',['aella-op']),
       ('(let [cx-disk 3] cx-disk)','cossack',[])]:

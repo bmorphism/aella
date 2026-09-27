@@ -16,6 +16,8 @@ PROFILES=('clojure','babashka','jank','cossack','clojurescript-nbb','basilisp','
 OPS={'+','-','*','=','<','<=','>','>=','not'}
 EXACT_OPS={"+'":'+',"-'":'-',"*'":'*','/':'/'}
 NATIVE_OPS={
+ 'nth':('list-ref',2),
+ 'cossack.padic/network-optimizer-step':('cx-network-optimizer-step',8),
  'cossack.padic/network-coordinate-step':('cx-network-coordinate-step',5),
  'cossack.number/complex':('make-rectangular',2),
  'cossack.number/real-part':('real-part',1),
@@ -106,6 +108,8 @@ def lower(source, profile, *, exact=False, parameters=()):
         if exact and head in native_ops:
             name,arity=native_ops[head]
             if len(args)!=arity:raise Unsupported('Wrong native operation arity: '+head)
+            if name=='list-ref' and (not isinstance(args[1],int) or args[1]<0):
+                raise Unsupported('Native data access requires a nonnegative literal integer index')
             return ('native',name,tuple(walk(a,env) for a in args))
         if head==('let*' if scheme else 'let'):
             if len(args)!=2:raise Unsupported('let requires bindings and one body expression')
