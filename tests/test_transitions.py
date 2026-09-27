@@ -1,7 +1,7 @@
 import itertools,sys,unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from transitions.compiler import PROFILES,Unsupported,lower,emit,transition
+from transitions.compiler import PROFILES,Unsupported,lower,emit,transition,native_program
 
 class Transitions(unittest.TestCase):
  def test_every_directed_pair(self):
@@ -23,4 +23,19 @@ class Transitions(unittest.TestCase):
    with self.subTest(source=source),self.assertRaises(Unsupported):lower(source,'clojure')
  def test_scheme_parallel_let_not_silently_sequential(self):
   with self.assertRaises(Unsupported):lower('(let ((x 1)) x)','gambit')
+ def test_dynamic_exact_compilation(self):
+  ir=lower("(+' (*' x x) 1/3)",'cossack',exact=True,parameters=['x'])
+  self.assertIn('aella-op * x x',emit(ir,'gambit',exact=True))
+  self.assertIn('string->number',native_program(emit(ir,'gambit',exact=True),['x']))
+  self.assertEqual(lower('123456789012345678901234567890N','cossack',exact=True),
+                   ('int',123456789012345678901234567890))
+ def test_native_contract_rejections(self):
+  for text,profile,parameters in [
+      ('(+ x 1)','cossack',['x']), ('1N','gambit',[]),
+      ("(+' 1 2)",'gambit',[]), ('(if x 1 2)','cossack',['x']),
+      ('x','cossack',['x','x']), ('aella-op','cossack',['aella-op']),
+      ('(let [cx-disk 3] cx-disk)','cossack',[])]:
+   with self.subTest(text=text),self.assertRaises(Unsupported):
+    lower(text,profile,exact=True,parameters=parameters)
+  with self.assertRaises(Unsupported):native_program('(cx-disk 3 1 0)',[])
 if __name__=='__main__':unittest.main()

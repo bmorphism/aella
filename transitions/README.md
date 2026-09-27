@@ -38,6 +38,38 @@ from IR roundtrips, and writes `results/transitions.json`. Unavailable runtimes
 are reported as unverified, never as passing. Basilisp and Squint currently
 have syntax profiles only; their execution adapters remain to be implemented.
 
+## Dynamic native numeric compilation
+
+`--exact` selects a separate native compilation contract for Clojure, Cossack,
+or Gambit input, targeting Gambit. It admits arbitrary exact integers, ratios,
+complex operations, and Cossack's p-adic operations. `--parameters x y` declares
+runtime executable arguments. These expressions are not evaluated during
+compilation, and their inputs are not restricted to 53-bit integers.
+
+For Clojure/Cossack input, use the promoting binary operators `+'`, `-'`, and
+`*'`; `/` performs exact division. Ordinary checked-long arithmetic is rejected
+in this mode because unbounded Scheme arithmetic would change its semantics.
+Gambit input uses its ordinary exact numeric operators. Native arguments use
+Scheme numeric spelling (including ratios and rectangular complex numbers),
+are parsed with `string->number`, and must be exact numbers. Executables print
+Scheme representations. Invalid arguments or counts fail at runtime.
+
+```sh
+python3 transitions/compiler.py --from cossack --to gambit kernel.clj \
+  --exact --parameters x --compile-to target/kernel --gsc /path/to/gsc \
+  --numeric-library /path/to/cossack-lisp/gambit/numeric.scm
+python3 tools/check_native_compile.py --gsc /path/to/gsc \
+  --numeric-library /path/to/cossack-lisp/gambit/numeric.scm
+```
+
+The optional numeric-library argument includes Cossack's actual Scheme numeric
+implementation; it is required for p-adic operations. This shares disk geometry
+with the interpreter instead of substituting a finite residue approximation.
+Compilation checks exercise both surface syntaxes with large runtime inputs,
+lexical capture, exact complex multiplication, and p-adic power/distance.
+This mode does not claim arbitrary namespace, macro, effect, or recursive-program
+support, and does not expand the common contract of the other dialect pairs.
+
 ## Categorical interpretation and its limits
 
 The operational objects here are dialect-indexed sets of accepted expressions;
