@@ -114,6 +114,12 @@ numeric index coercions.
 affine active-term groups, conservative general polynomial groups, persistent
 awaiting-turn marks, explicit draws, and simultaneous first-vertex clipping.
 Joint direction selection and minimal nonlinear coupling groups remain unfinished.
+Disk negation, independent subtraction, representation accessors, a zero-radius
+predicate, center norms, and hull seminorms also compile. Exact rational
+decomposition and digit expansions preserve arbitrary precision; reconstruction
+returns a rational approximation with an explicit p-adic error bound. See the
+shared backend's `GAMBIT.md` for the distinction between representative data
+and hull invariants. The zero-radius predicate is accepted in native conditions.
 Unused p-adic code is not included in purely numeric executables.
 All 18 SRFI 141 division procedures also compile directly to Gambit's built-ins.
 The Clojure surface uses `srfi.141/<name>`; Scheme uses the original unqualified

@@ -19,6 +19,17 @@ SRFI141_MODES=('balanced','ceiling','floor','round','truncate','euclidean')
 SRFI141_PAIRS={mode+'/' for mode in SRFI141_MODES}
 SRFI141_NAMES={mode+suffix for mode in SRFI141_MODES for suffix in ('/','-quotient','-remainder')}
 NATIVE_OPS={
+ 'cossack.padic/neg':('cx-disk-neg',1),
+ 'cossack.padic/sub':('cx-disk-sub',2),
+ 'cossack.padic/prime':('cx-disk-prime',1),
+ 'cossack.padic/center':('cx-disk-center',1),
+ 'cossack.padic/radius':('cx-disk-radius',1),
+ 'cossack.padic/point?':('cx-disk-point?',1),
+ 'cossack.padic/center-norm':('cx-disk-center-norm',1),
+ 'cossack.padic/seminorm':('cx-disk-seminorm',1),
+ 'cossack.padic/decompose':('cx-decompose',2),
+ 'cossack.padic/expansion':('cx-expansion',3),
+ 'cossack.padic/from-expansion':('cx-from-expansion',2),
  'cossack.padic/network-groups':('cx-network-groups',3),
  'cossack.padic/network-train-step':('cx-network-train-step',7),
  'nth':('list-ref',2),
@@ -150,7 +161,7 @@ def lower(source, profile, *, exact=False, parameters=()):
         if head=='if':
             if len(args)!=3:raise Unsupported('if requires test and two branches')
             test=walk(args[0],env)
-            if not (test[0]=='bool' or test[0]=='op' and test[1] in {'=','<','<=','>','>=','not'}):
+            if not (test[0]=='bool' or test[0]=='op' and test[1] in {'=','<','<=','>','>=','not'} or test[0]=='native' and test[1]=='cx-disk-point?'):
                 raise Unsupported('Cross-Scheme condition must be provably boolean')
             return ('if',test,walk(args[1],env),walk(args[2],env))
         if exact and not scheme and head in ('+','-','*','inc','dec'):
@@ -165,7 +176,7 @@ def lower(source, profile, *, exact=False, parameters=()):
             if head=='not':
                 if len(args)!=1:raise Unsupported('not arity')
                 test=walk(args[0],env)
-                if not (test[0]=='bool' or test[0]=='op' and test[1] in {'=','<','<=','>','>=','not'}):raise Unsupported('not requires a provably boolean operand')
+                if not (test[0]=='bool' or test[0]=='op' and test[1] in {'=','<','<=','>','>=','not'} or test[0]=='native' and test[1]=='cx-disk-point?'):raise Unsupported('not requires a provably boolean operand')
                 return ('op',head,(test,))
             if len(args)!=2:raise Unsupported('Common arithmetic/comparison currently requires two operands')
             return ('op',head,tuple(walk(a,env) for a in args))

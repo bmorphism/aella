@@ -14,6 +14,9 @@ a=p.parse_args()
 if a.compile_timeout<=0:p.error('--compile-timeout must be positive')
 if a.only and not a.output:p.error("--only requires --output to keep partial results separate")
 fixtures=[
+ ('representation','(let [d (cossack.padic/disk 3 x 1/3) e (cossack.padic/expansion 3 x 4)] [(cossack.padic/prime d) (cossack.padic/center d) (cossack.padic/radius d) (cossack.padic/point? d) (if (cossack.padic/point? (cossack.padic/disk 3 x 0)) 7 9) (cossack.padic/center-norm d) (cossack.padic/seminorm d) (cossack.padic/center (cossack.padic/neg d)) (cossack.padic/radius (cossack.padic/sub d d)) (cossack.padic/decompose 3 x) e (cossack.padic/from-expansion 3 e)])',
+  '(let* ((d (cx-disk 3 x 1/3)) (e (cx-expansion 3 x 4))) (list (cx-disk-prime d) (cx-disk-center d) (cx-disk-radius d) (cx-disk-point? d) (if (cx-disk-point? (cx-disk 3 x 0)) 7 9) (cx-disk-center-norm d) (cx-disk-seminorm d) (cx-disk-center (cx-disk-neg d)) (cx-disk-radius (cx-disk-sub d d)) (cx-decompose 3 x) e (cx-from-expansion 3 e)))',
+  [('-1','(3 -1 1/3 #f 7 1 1 1 1/3 (-1 0) (0 (2 2 2 2)) 80)'),('1/6','(3 1/6 1/3 #f 7 3 3 -1/6 1/3 (1/2 -1) (-1 (2 1 1 1)) 41/3)'),('0','(3 0 1/3 #f 7 0 1/3 0 1/3 (0 0) (0 (0 0 0 0)) 0)')]),
  ('native-shadow',"(let [list-ref (fn [n] (+' n x)) floor-quotient (fn [n] (+' n 1))] (+' (list-ref 40) (+' (floor-quotient (nth [0 1] 0)) (srfi.141/floor-quotient 3 2))))",
   '(let* ((list-ref (lambda (n) (+ n x))) (floor-quotient (lambda (n) (+ n 1)))) (+ (list-ref 40) (+ (floor-quotient 0) (call-with-values (lambda () (floor/ 3 2)) (lambda (q r) q)))))',[('0','42'),('3','45')]),
  ('grouped-training', '(let [a (cossack.padic/network-train-step [] [(cossack.padic/disk 3 0 1/2) (cossack.padic/disk 3 0 2/5)] [0 0] x [0 0 0 1/100] [] [[0 0] [0 0]])] (cossack.padic/network-loss [] (nth a 0) [0 0]))',
