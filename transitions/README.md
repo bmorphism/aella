@@ -145,8 +145,27 @@ These division calls retain the integer-argument and nonzero-divisor contract.
 `tools/check_native_srfi141.py` checks all procedures against an independent
 integer oracle and direct Gambit, including rounding ties, negative divisors,
 and integers exceeding 4,096 bits. No p-adic library is needed for these calls.
-This mode does not claim arbitrary namespace, macro, effect, or recursive-program
-support, and does not expand the common contract of the other dialect pairs.
+Exact-native mode supports Clojure `loop/recur` and function-level `recur`, plus
+tail-recursive Scheme named `let`. Recursion points have checked arity and
+tail position. Recur arguments are evaluated before simultaneous rebinding;
+closures retain their captured iteration values. Nested functions establish
+their own Clojure recursion point. Clojure loop initializers are sequential;
+Scheme named-let initializers use the surrounding environment in parallel.
+Generated recursion names are private and cannot capture source bindings.
+Named-let functions cannot escape as values in this subset, and calls to them
+must be in tail position. Destructuring and named/multi-arity Clojure functions
+remain unsupported. Native loops execute at runtime, without the common-mode
+compile-time evaluation budget.
+
+`tools/check_native_loops.py` checks compiled arithmetic loops and JVM Clojure
+references, including 100,000 iterations and arbitrary-precision factorials.
+`tools/check_compiled_training.py` compiles the entire state-carrying training
+loop from both syntaxes and runs 40-step Momentum and Adam trajectories in the
+resulting executables.
+
+This mode does not claim arbitrary namespaces, macros, effects, general
+recursion, or application translation, and does not expand the common contract
+of the other dialect pairs.
 
 ## Categorical interpretation and its limits
 

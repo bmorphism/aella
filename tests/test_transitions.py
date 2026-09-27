@@ -43,4 +43,21 @@ class Transitions(unittest.TestCase):
    with self.subTest(text=text),self.assertRaises(Unsupported):
     lower(text,profile,exact=True,parameters=parameters)
   with self.assertRaises(Unsupported):native_program('(cx-disk 3 1 0)',[])
+ def test_recursive_contract_rejections(self):
+  invalid=[
+   ('cossack','(recur 1)'),
+   ('cossack',"(loop [n 1] (+' 1 (recur 0)))"),
+   ('cossack','(loop [n 1] (recur))'),
+   ('cossack','(loop [n 1] [(recur 0)])'),
+   ('cossack','(loop [n 1] (let [x (recur 0)] x))'),
+   ('cossack','(loop [n 1] (fn [a b] (recur 0)))'),
+   ('cossack','(loop [n 1 n 2] n)'),
+   ('gambit','(let loop ((n 1)) (+ 1 (loop 0)))'),
+   ('gambit','(let loop ((n 1)) (loop))'),
+   ('gambit','(let loop ((n 1)) loop)'),
+  ]
+  for profile,source in invalid:
+   with self.subTest(source=source),self.assertRaises(Unsupported):lower(source,profile,exact=True)
+  with self.assertRaises(Unsupported):lower('(loop [n 1] n)','clojure')
+  with self.assertRaises(Unsupported):emit(lower('(loop [n 1] n)','clojure',exact=True),'clojure')
 if __name__=='__main__':unittest.main()

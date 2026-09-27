@@ -109,27 +109,64 @@ def lower(source, profile, *, exact=False, parameters=()):
     if profile not in PROFILES:raise Unsupported('Unknown source profile')
     if exact and profile not in ('clojure','cossack','gambit'):raise Unsupported('Exact native compilation supports Clojure, Cossack, and Gambit inputs')
     scheme=profile=='gambit'
-    def identifier(x):
-        if not isinstance(x,Sym) or x.name in RESERVED or '/' in x.name or x.name.startswith(('aella-','cx-')):
+    serial=0
+    def fresh():
+        nonlocal serial
+        serial+=1
+        return 'aella-loop-'+str(serial)
+    def identifier(x,loop_label=False):
+        if not isinstance(x,Sym) or x.name in RESERVED and not (loop_label and scheme and x.name=='loop') or '/' in x.name or x.name.startswith(('aella-','cx-')):
             raise Unsupported('Expected a non-reserved, unqualified binding name')
         return x.name
-    def walk(x,env):
-        if exact and isinstance(x,Vec):return ('data-list',tuple(walk(a,env) for a in x.items))
+    def walk(x,env,tail=False,target=None):
+        def value(y,scope=None):return walk(y,env if scope is None else scope,target=target)
+        if exact and isinstance(x,Vec):return ('data-list',tuple(value(a) for a in x.items))
         if isinstance(x,Fraction):return ('ratio',x.numerator,x.denominator)
         if isinstance(x,int):return ('int',x)
         if isinstance(x,Sym):
             bools={'#t':True,'#f':False} if scheme else {'true':True,'false':False}
             if x.name in bools:return ('bool',bools[x.name])
-            if x.name in env:return ('var',x.name)
+            if x.name in env:
+                if env[x.name] is not None:raise Unsupported('Named-let recursion points cannot escape as values')
+                return ('var',x.name)
             raise Unsupported('Unbound or unsupported symbol: '+x.name)
         if not isinstance(x,tuple) or not x:raise Unsupported('Expected a supported expression')
         head=x[0].name if isinstance(x[0],Sym) else None
         args=x[1:]
-        if exact and scheme and head=='list':return ('data-list',tuple(walk(a,env) for a in args))
+        if exact and not scheme and head=='recur':
+            if not tail or target is None:raise Unsupported('recur requires tail position in a loop or function')
+            if len(args)!=target[1]:raise Unsupported('recur arity does not match its recursion point')
+            return ('jump',target[0],tuple(value(a) for a in args))
+        if exact and scheme and head in env and env[head] is not None:
+            point=env[head]
+            if not tail:raise Unsupported('Named-let recursive calls require tail position in this subset')
+            if len(args)!=point[1]:raise Unsupported('Named-let recursive call has wrong arity')
+            return ('jump',point[0],tuple(value(a) for a in args))
+        if exact and (not scheme and head=='loop' or scheme and head=='let' and args and isinstance(args[0],Sym)):
+            if scheme:
+                if len(args)!=3 or not isinstance(args[1],tuple):raise Unsupported('Named let requires a name, bindings, and one body')
+                label=identifier(args[0],loop_label=True);pairs=args[1];body=args[2]
+            else:
+                if len(args)!=2 or not isinstance(args[0],Vec) or len(args[0].items)%2:raise Unsupported('loop requires binding pairs and one body')
+                label=None;pairs=tuple(zip(args[0].items[::2],args[0].items[1::2]));body=args[1]
+            bindings=[];scope=dict(env);seen=set();name=fresh()
+            for pair in pairs:
+                if not isinstance(pair,tuple) or len(pair)!=2:raise Unsupported('Malformed loop binding')
+                parameter=identifier(pair[0])
+                if parameter in seen:raise Unsupported('Duplicate loop binding')
+                seen.add(parameter)
+                # Clojure initializers are sequential; Scheme named-let initializers are parallel.
+                bindings.append((parameter,value(pair[1],env if scheme else scope)))
+                scope[parameter]=None
+            point=(name,len(bindings))
+            if scheme:
+                scope=dict(env);scope[label]=point;scope.update({parameter:None for parameter,_ in bindings})
+            return ('loop',name,tuple(bindings),walk(body,scope,tail=True,target=None if scheme else point),not scheme)
+        if exact and scheme and head=='list':return ('data-list',tuple(value(a) for a in args))
         if exact and scheme and head=='call-with-values':
             if len(args)!=2:raise Unsupported('call-with-values requires producer and consumer')
-            consumer=('list-function',) if args[1]==Sym('list') else walk(args[1],env)
-            return ('call-values',walk(args[0],env),consumer)
+            consumer=('list-function',) if args[1]==Sym('list') else value(args[1])
+            return ('call-values',value(args[0]),consumer)
         native_ops={v[0]:v for v in NATIVE_OPS.values()} if scheme else NATIVE_OPS
         if exact and head in native_ops and head not in env:
             name,arity=native_ops[head]
@@ -137,7 +174,7 @@ def lower(source, profile, *, exact=False, parameters=()):
             if name=='list-ref' and (not isinstance(args[1],int) or args[1]<0):
                 raise Unsupported('Native data access requires a nonnegative literal integer index')
             kind='native-pair' if not scheme and name in SRFI141_PAIRS else 'native'
-            return (kind,name,tuple(walk(a,env) for a in args))
+            return (kind,name,tuple(value(a) for a in args))
         if head==('let*' if scheme else 'let'):
             if len(args)!=2:raise Unsupported('let requires bindings and one body expression')
             if scheme:
@@ -146,46 +183,50 @@ def lower(source, profile, *, exact=False, parameters=()):
             else:
                 if not isinstance(args[0],Vec) or len(args[0].items)%2:raise Unsupported('Clojure bindings must be pairs in a vector')
                 pairs=tuple(zip(args[0].items[::2],args[0].items[1::2]))
-            bindings=[];scope=set(env)
+            bindings=[];scope=dict(env)
             for pair in pairs:
                 if not isinstance(pair,tuple) or len(pair)!=2:raise Unsupported('Malformed binding')
-                name=identifier(pair[0]);bindings.append((name,walk(pair[1],scope)));scope.add(name)
-            return ('let',tuple(bindings),walk(args[1],scope))
+                name=identifier(pair[0]);bindings.append((name,value(pair[1],scope)));scope[name]=None
+            return ('let',tuple(bindings),walk(args[1],scope,tail=tail,target=target))
         if head==('lambda' if scheme else 'fn'):
             if len(args)!=2:raise Unsupported('Function requires parameters and one body')
             ps=args[0] if scheme and isinstance(args[0],tuple) else args[0].items if not scheme and isinstance(args[0],Vec) else None
             if ps is None:raise Unsupported('Invalid parameter list')
             names=tuple(identifier(p) for p in ps)
             if len(set(names))!=len(names):raise Unsupported('Duplicate parameters are outside the common subset')
-            return ('fn',names,walk(args[1],set(env)|set(names)))
+            scope=dict(env);scope.update({name:None for name in names})
+            if exact and not scheme:
+                name=fresh()
+                return ('rec-fn',name,names,walk(args[1],scope,tail=True,target=(name,len(names))))
+            return ('fn',names,walk(args[1],scope,tail=True))
         if head=='if':
             if len(args)!=3:raise Unsupported('if requires test and two branches')
-            test=walk(args[0],env)
+            test=value(args[0])
             if not (test[0]=='bool' or test[0]=='op' and test[1] in {'=','<','<=','>','>=','not'} or test[0]=='native' and test[1]=='cx-disk-point?'):
                 raise Unsupported('Cross-Scheme condition must be provably boolean')
-            return ('if',test,walk(args[1],env),walk(args[2],env))
+            return ('if',test,walk(args[1],env,tail=tail,target=target),walk(args[2],env,tail=tail,target=target))
         if exact and not scheme and head in ('+','-','*','inc','dec'):
             raise Unsupported("Exact native compilation requires promoting arithmetic: +', -', *'; use addition/subtraction by one for inc/dec")
         if head in ('inc','dec') and not scheme:
             if len(args)!=1:raise Unsupported('inc/dec arity')
-            return ('op','+' if head=='inc' else '-',(walk(args[0],env),('int',1)))
+            return ('op','+' if head=='inc' else '-',(value(args[0]),('int',1)))
         if exact and head in EXACT_OPS:
             if scheme and head!='/':raise Unsupported('Promoting apostrophe operators are Clojure syntax')
             head=EXACT_OPS[head]
         if head in OPS or exact and head=='/':
             if head=='not':
                 if len(args)!=1:raise Unsupported('not arity')
-                test=walk(args[0],env)
+                test=value(args[0])
                 if not (test[0]=='bool' or test[0]=='op' and test[1] in {'=','<','<=','>','>=','not'} or test[0]=='native' and test[1]=='cx-disk-point?'):raise Unsupported('not requires a provably boolean operand')
                 return ('op',head,(test,))
             if len(args)!=2:raise Unsupported('Common arithmetic/comparison currently requires two operands')
-            return ('op',head,tuple(walk(a,env) for a in args))
+            return ('op',head,tuple(value(a) for a in args))
         if head in RESERVED:raise Unsupported('Form is not supported in this source dialect: '+head)
-        return ('call',walk(x[0],env),tuple(walk(a,env) for a in args))
+        return ('call',value(x[0]),tuple(value(a) for a in args))
     names=tuple(identifier(Sym(p)) for p in parameters)
     if len(set(names))!=len(names):raise Unsupported('Duplicate runtime parameters')
     if parameters and not exact:raise Unsupported('Runtime parameters require exact native compilation')
-    result=walk(read(source,exact=exact,clojure_numbers=not scheme),set(names))
+    result=walk(read(source,exact=exact,clojure_numbers=not scheme),{name:None for name in names},tail=True)
     if not exact:evaluate(result)
     return result
 
@@ -231,6 +272,8 @@ def emit(ir,profile, *, exact=False):
     if exact and profile!='gambit':raise Unsupported('Exact native output currently requires Gambit')
     def go(n):
         kind=n[0]
+        if kind in ('jump','rec-fn','loop') and not exact:
+            raise Unsupported('Tail recursion output requires exact native mode')
         if kind=='int':return str(n[1])
         if kind=='data-list':return '(list'+(' ' if n[1] else '')+' '.join(go(v) for v in n[1])+')'
         if kind=='list-function':return 'list'
@@ -238,6 +281,19 @@ def emit(ir,profile, *, exact=False):
         if kind=='ratio':return str(n[1])+'/'+str(n[2])
         if kind=='bool':return ('#t' if n[1] else '#f') if scheme else ('true' if n[1] else 'false')
         if kind=='var':return n[1]
+        if kind=='jump':
+            temporaries=[n[1]+'-arg-'+str(i) for i in range(len(n[2]))]
+            bindings=' '.join('('+name+' '+go(value)+')' for name,value in zip(temporaries,n[2]))
+            return '(let* ('+bindings+') ('+n[1]+(' ' if temporaries else '')+' '.join(temporaries)+'))'
+        if kind=='rec-fn':
+            return '(letrec (('+n[1]+' (lambda ('+' '.join(n[2])+') '+go(n[3])+'))) '+n[1]+')'
+        if kind=='loop':
+            name,bindings,body,sequential=n[1:]
+            parameters=[key for key,_ in bindings]
+            initial_names=parameters if sequential else [name+'-init-'+str(i) for i in range(len(bindings))]
+            initializers=' '.join('('+key+' '+go(value)+')' for key,(_,value) in zip(initial_names,bindings))
+            procedure='(letrec (('+name+' (lambda ('+' '.join(parameters)+') '+go(body)+'))) ('+name+(' ' if initial_names else '')+' '.join(initial_names)+'))'
+            return '('+('let*' if sequential else 'let')+' ('+initializers+') '+procedure+')'
         if kind=='let':
             bindings=' '.join('('+name+' '+go(v)+')' for name,v in n[1]) if scheme else ' '.join(name+' '+go(v) for name,v in n[1])
             return '(let* ('+bindings+') '+go(n[2])+')' if scheme else '(let ['+bindings+'] '+go(n[2])+')'
