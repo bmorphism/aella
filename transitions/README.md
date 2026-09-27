@@ -170,6 +170,16 @@ but cannot be passed to this compiler's exact-only arithmetic operators.
 Zero seminorms are rejected as singular. `tools/check_native_classification.py`
 checks both source syntaxes with runtime parameters, including 4,097-bit radii and losses near zero.
 
+The `network-classification-*` operations compose these heads with polynomial
+stages: `probabilities` takes stages and disks; `loss` and `groups` add the class
+label; `slope` takes velocities before the label. `train-step` takes
+`stages disks label rate config state draws` and shares the regression
+scheduler, optimizer state, and clipping behavior. The compiled training
+checker runs twelve GD/Momentum/Adam updates through a binary polynomial
+classifier from both syntaxes. These are per-example objectives; minibatch
+classification is not yet exposed. Exact-rational state can grow expensive
+on longer trajectories with multiple moving scores.
+
 Exact-native mode also compiles shaped p-adic arrays through the shared
 library: `cossack.padic/array`, `array-add`, `array-sub`, `array-mul`,
 `array-neg`, and `array-power` (Scheme names `cx-array`, etc.). Construction
