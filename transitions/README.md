@@ -176,9 +176,19 @@ label; `slope` takes velocities before the label. `train-step` takes
 `stages disks label rate config state draws` and shares the regression
 scheduler, optimizer state, and clipping behavior. The compiled training
 checker runs twelve GD/Momentum/Adam updates through a binary polynomial
-classifier from both syntaxes. These are per-example objectives; minibatch
-classification is not yet exposed. Exact-rational state can grow expensive
+classifier from both syntaxes. These are per-example objectives; the batch operations below combine examples. Exact-rational state can grow expensive
 on longer trajectories with multiple moving scores.
+
+`classification-batch-loss`, `classification-batch-slope`, and
+`classification-batch-groups` take a batch and parameter disks (`slope` also
+takes velocities). Each batch entry is `[stages label exact-weight]`.
+Nonnegative weights are normalized exactly and must have positive total weight.
+Zero-weight entries are validated but contribute no slopes or grouping edges.
+`classification-batch-train-step` takes `batch disks rate config state draws`;
+it joins per-example coupling groups before scheduling updates. Derivatives
+remain exact; the mean cross-entropy is floating point. Scheme names carry the
+`cx-` prefix. `tools/check_compiled_classification_batch.py` checks all four
+operations and complete weighted training loops from both syntaxes.
 
 Exact-native mode also compiles shaped p-adic arrays through the shared
 library: `cossack.padic/array`, `array-add`, `array-sub`, `array-mul`,
