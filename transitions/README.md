@@ -101,6 +101,10 @@ Polynomial stages can be composed into networks with `network-loss` and
 `network-slope`, using the shared library's forward directional differentiation
 and summed direct loss. Stagewise dependency bounds remain explicit; this is
 not arbitrary analytic reverse-mode differentiation.
+`network-coordinate-step` also compiles: it selects the least directional slope
+for one explicit coordinate and clips the update at the next vertex. The
+selected radius must be positive. This API returns the updated disk; joint
+direction selection and Momentum/Adam remain outside its contract.
 Unused p-adic code is not included in purely numeric executables.
 This mode does not claim arbitrary namespace, macro, effect, or recursive-program
 support, and does not expand the common contract of the other dialect pairs.

@@ -33,6 +33,8 @@ fixtures=[
   '(cx-polynomial-slope (list (list 1 (list 0 0)) (list 1 (list 1 0)) (list -1/2 (list 0 2))) (list (cx-disk 2 0 1/2) (cx-disk 2 0 1/2)) (list x -1))',[('-3','-2'),('1','1')]),
  ('network-loss','(cossack.padic/network-loss [[[[1 [2]]]]] [(cossack.padic/disk 3 0 x)] [1])',
   '(cx-network-loss (list (list (list (list 1 (list 2))))) (list (cx-disk 3 0 x)) (list 1))',[('1/3','17/18'),('1','1/2')]),
+ ('coordinate-step','(cossack.padic/distance (cossack.padic/network-coordinate-step [] [(cossack.padic/disk 3 0 1)] [1] 0 x) (cossack.padic/disk 3 1 0))',
+  '(cx-distance (cx-network-coordinate-step (list) (list (cx-disk 3 0 1)) (list 1) 0 x) (cx-disk 3 1 0))',[('1','1/2'),('10','1/3')]),
  ('network-slope','(cossack.padic/network-slope [[[[1 [2]]]]] [(cossack.padic/disk 3 0 1/3)] [x] [1])',
   '(cx-network-slope (list (list (list (list 1 (list 2))))) (list (cx-disk 3 0 1/3)) (list x) (list 1))',[('1','-1/3'),('-1','1/3')]),
  ('norm','(cossack.padic/norm 3 x)','(cx-norm 3 x)',[('5/9','9'),('81','1/81')]),
