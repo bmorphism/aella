@@ -20,6 +20,15 @@ PROGRAMS = [
     '(let [x 3] ((fn [y] (+ x y)) 4))',
     '(let [x 2 f (fn [y] (+ x y)) x 9] (f 3))',
     '(+ 9007199254740990 1)',
+    '(loop [n 0 total 0] (if (< n 20) (recur (+ n 1) (+ total n)) total))',
+    '(loop [n 0 a 1 b 2] (if (< n 3) (recur (+ n 1) b a) (+ (* a 10) b)))',
+    '(let [x 9] (loop [x 1 y x] y))',
+    '(loop [n 0 f (fn [] -1)] (if (< n 5) (recur (+ n 1) (fn [] n)) (f)))',
+    '(loop [n 0 total 0] (if (< n 3) (recur (+ n 1) (+ total (loop [m 0] (if (< m n) (recur (+ m 1)) m)))) total))',
+    '(let [z 100] (loop [n 0 f (fn [x] x)] (if (< n 3) (recur (+ n 1) (fn [x] (let [z (+ x 1)] (+ z n)))) (f 10))))',
+    '(loop [n 0 f (fn [] (fn [] -1))] (if (< n 3) (recur (+ n 1) (fn [] (fn [] n))) ((f))))',
+    '(let [aellaGenerated1 7] (loop [n 0] (if (< n 3) (recur (+ n 1)) (+ n aellaGenerated1))))',
+    emit(lower('(let* ((x 9)) (let loop ((x 1) (y x)) y))','gambit'),'clojure'),
 ]
 
 def main():
@@ -87,15 +96,16 @@ def main():
         if gsc:
             # Exercise the public CLI from both actual surface syntaxes.
             for profile in ('clojure','gambit'):
-                ir=lower(PROGRAMS[2],'clojure')
-                source=tmp/(profile+'.src');source.write_text(emit(ir,profile))
-                exe=tmp/(profile+'-compiled')
-                subprocess.run([sys.executable,str(ROOT/'transitions/compiler.py'),
-                    '--from',profile,'--to','gambit',str(source),'--gsc',gsc,
-                    '--compile-to',str(exe)],check=True,timeout=180)
-                result=subprocess.run([str(exe)],capture_output=True,text=True,check=True,timeout=30)
-                assert result.stdout.strip()=='17',result
-            report['gambit_compilation']={'status':'passed','frontends':['clojure','gambit']}
+                for index in (2,8):
+                    ir=lower(PROGRAMS[index],'clojure')
+                    source=tmp/(profile+str(index)+'.src');source.write_text(emit(ir,profile))
+                    exe=tmp/(profile+str(index)+'-compiled')
+                    subprocess.run([sys.executable,str(ROOT/'transitions/compiler.py'),
+                        '--from',profile,'--to','gambit',str(source),'--gsc',gsc,
+                        '--compile-to',str(exe)],check=True,timeout=180)
+                    result=subprocess.run([str(exe)],capture_output=True,text=True,check=True,timeout=30)
+                    assert result.stdout.strip()==str(evaluate(ir)),result
+            report['gambit_compilation']={'status':'passed','frontends':['clojure','gambit'],'programs':4}
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(report,indent=2)+'\n')
     if args.require_all and (any(r['status']!='passed' for r in report['runtimes'].values())

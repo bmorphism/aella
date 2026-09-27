@@ -139,16 +139,17 @@ def lower(source, profile, *, exact=False, parameters=()):
         if not isinstance(x,tuple) or not x:raise Unsupported('Expected a supported expression')
         head=x[0].name if isinstance(x[0],Sym) else None
         args=x[1:]
-        if exact and not scheme and head=='recur':
+        if not scheme and head=='recur':
             if not tail or target is None:raise Unsupported('recur requires tail position in a loop or function')
             if len(args)!=target[1]:raise Unsupported('recur arity does not match its recursion point')
             return ('jump',target[0],tuple(value(a) for a in args))
-        if exact and scheme and head in env and env[head] is not None:
+        if scheme and head in env and env[head] is not None:
             point=env[head]
+            if not exact and point!=target:raise Unsupported('Common loops cannot recur across a function or nested loop boundary')
             if not tail:raise Unsupported('Named-let recursive calls require tail position in this subset')
             if len(args)!=point[1]:raise Unsupported('Named-let recursive call has wrong arity')
             return ('jump',point[0],tuple(value(a) for a in args))
-        if exact and (not scheme and head=='loop' or scheme and head=='let' and args and isinstance(args[0],Sym)):
+        if not scheme and head=='loop' or scheme and head=='let' and args and isinstance(args[0],Sym):
             if scheme:
                 if len(args)!=3 or not isinstance(args[1],tuple):raise Unsupported('Named let requires a name, bindings, and one body')
                 label=identifier(args[0],loop_label=True);pairs=args[1];body=args[2]
@@ -167,7 +168,7 @@ def lower(source, profile, *, exact=False, parameters=()):
             point=(name,len(bindings))
             if scheme:
                 scope=dict(env);scope[label]=point;scope.update({parameter:None for parameter,_ in bindings})
-            return ('loop',name,tuple(bindings),walk(body,scope,tail=True,target=None if scheme else point),not scheme)
+            return ('loop',name,tuple(bindings),walk(body,scope,tail=True,target=None if scheme and exact else point),not scheme)
         if exact and scheme and head=='list':return ('data-list',tuple(value(a) for a in args))
         if exact and scheme and head=='call-with-values':
             if len(args)!=2:raise Unsupported('call-with-values requires producer and consumer')
@@ -239,6 +240,10 @@ def lower(source, profile, *, exact=False, parameters=()):
 def evaluate(ir):
     """Certify this closed pure expression's numeric/boolean preconditions."""
     budget=10000
+    @dataclass
+    class Jump:
+        target: str
+        values: tuple
     def run(n,env):
         nonlocal budget
         budget-=1
@@ -246,6 +251,20 @@ def evaluate(ir):
         kind=n[0]
         if kind in ('int','bool'):return n[1]
         if kind=='var':return env[n[1]]
+        if kind=='jump':return Jump(n[1],tuple(run(v,env) for v in n[2]))
+        if kind=='loop':
+            name,bindings,body,sequential=n[1:]
+            initial=dict(env)
+            values=[]
+            for key,value in bindings:
+                v=run(value,initial if sequential else env)
+                values.append(v);initial[key]=v
+            while True:
+                scope=dict(env);scope.update(zip((key for key,_ in bindings),values))
+                result=run(body,scope)
+                if not isinstance(result,Jump):return result
+                if result.target!=name:raise Unsupported('Jump crossed its loop boundary')
+                values=result.values
         if kind=='fn':return (n[1],n[2],dict(env))
         if kind=='let':
             scope=dict(env)
@@ -272,14 +291,76 @@ def evaluate(ir):
     if type(result) not in (int,bool):raise Unsupported('Common expression must return an integer or boolean')
     return result
 
+def free_variables(n, bound=frozenset()):
+    """Lexical free variables for the common IR, including initializer scope."""
+    kind=n[0]
+    if kind=='var':return {n[1]}-bound
+    if kind in ('int','bool'):return set()
+    if kind=='fn':return free_variables(n[2],bound|set(n[1]))
+    if kind in ('let','loop'):
+        bindings,body,sequential=(n[1],n[2],True) if kind=='let' else (n[2],n[3],n[4])
+        scope=set(bound);result=set()
+        for key,value in bindings:
+            result|=free_variables(value,scope if sequential else bound)
+            scope.add(key)
+        return result|free_variables(body,scope)
+    children=n[1:] if kind=='if' else (n[1],*n[2]) if kind=='call' else n[2]
+    return set().union(*(free_variables(child,bound) for child in children))
+
 def emit(ir,profile, *, exact=False):
     if profile not in PROFILES:raise Unsupported('Unknown target profile')
     scheme=profile=='gambit'
     if exact and profile!='gambit':raise Unsupported('Exact native output currently requires Gambit')
+    used=set()
+    has_loop=False
+    def collect(n):
+        nonlocal has_loop
+        if isinstance(n,str):used.add(n)
+        elif isinstance(n,(tuple,list)):
+            if n and n[0]=='loop':has_loop=True
+            for value in n:collect(value)
+    collect(ir)
+    serial=0
+    def fresh():
+        nonlocal serial
+        while True:
+            serial+=1
+            name='aellaGenerated'+str(serial)
+            if name not in used:used.add(name);return name
+    labels={}
     def go(n):
         kind=n[0]
-        if kind in ('jump','rec-fn','loop') and not exact:
-            raise Unsupported('Tail recursion output requires exact native mode')
+        if kind=='rec-fn' and not exact:
+            raise Unsupported('Function recursion output requires exact native mode')
+        if not exact and kind=='jump':
+            temps=[fresh() for _ in n[2]]
+            call='('+(labels[n[1]] if scheme else 'recur')+(' ' if temps else '')+' '.join(temps)+')'
+            if scheme:
+                bindings=' '.join('('+key+' '+go(value)+')' for key,value in zip(temps,n[2]))
+                return '(let* ('+bindings+') '+call+')'
+            def argument(value):
+                expression=go(value)
+                if profile=='jank':
+                    # A plain let alias still observes a rebound recur slot on
+                    # the tested Jank runtime. A function result snapshots it.
+                    parameter=fresh()
+                    return '((fn ['+parameter+'] '+parameter+') '+expression+')'
+                return expression
+            bindings=' '.join(key+' '+argument(value) for key,value in zip(temps,n[2]))
+            return '(let ['+bindings+'] '+call+')'
+        if not exact and kind=='loop':
+            name,bindings,body,sequential=n[1:]
+            labels[name]=fresh()
+            # Fresh temporaries give Scheme's parallel initializers their outer scope.
+            keys=[key for key,_ in bindings]
+            initial=keys if sequential else [fresh() for _ in bindings]
+            if scheme:
+                values=' '.join('('+key+' '+go(value)+')' for key,(_,value) in zip(initial,bindings))
+                loop_bindings=' '.join('('+key+' '+value+')' for key,value in zip(keys,initial))
+                return '(let* ('+values+') (let '+labels[name]+' ('+loop_bindings+') '+go(body)+'))'
+            values=' '.join(key+' '+go(value) for key,(_,value) in zip(initial,bindings))
+            loop_bindings=' '.join(key+' '+value for key,value in zip(keys,initial))
+            return '(let ['+values+'] (loop ['+loop_bindings+'] '+go(body)+'))'
         if kind=='int':return str(n[1])
         if kind=='data-list':return '(list'+(' ' if n[1] else '')+' '.join(go(v) for v in n[1])+')'
         if kind=='list-function':return 'list'
@@ -303,7 +384,16 @@ def emit(ir,profile, *, exact=False):
         if kind=='let':
             bindings=' '.join('('+name+' '+go(v)+')' for name,v in n[1]) if scheme else ' '.join(name+' '+go(v) for name,v in n[1])
             return '(let* ('+bindings+') '+go(n[2])+')' if scheme else '(let ['+bindings+'] '+go(n[2])+')'
-        if kind=='fn':return ('(lambda (' if scheme else '(fn [')+' '.join(n[1])+(') ' if scheme else '] ')+go(n[2])+')'
+        if kind=='fn':
+            expression=('(lambda (' if scheme else '(fn [')+' '.join(n[1])+(') ' if scheme else '] ')+go(n[2])+')'
+            if profile in ('basilisp','squint') and has_loop:
+                captures=sorted(free_variables(n))
+                if captures:
+                    # Capture current values in a fresh function activation;
+                    # These runtimes otherwise retain mutable loop cells.
+                    names=' '.join(captures)
+                    return '((fn ['+names+'] '+expression+') '+names+')'
+            return expression
         if kind=='if':return '(if '+' '.join(go(v) for v in n[1:])+')'
         if kind=='op':return '('+('aella-op '+n[1] if exact and n[1]!='not' else n[1])+' '+' '.join(go(v) for v in n[2])+')'
         if kind in ('native','native-pair'):

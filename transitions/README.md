@@ -10,16 +10,31 @@ not an assertion that every dialect or library used elsewhere is covered.
 The implementation is Python 3, separate from Aella's Rascal semantics sketch.
 It supports integer literals, booleans, sequential lexical bindings, closures,
 single-arity anonymous functions, application, boolean conditionals, and a
-bounded arithmetic/comparison vocabulary. It verifies the closed expression
+bounded arithmetic/comparison vocabulary, plus finite `loop/recur` and Scheme
+named-let iteration. It verifies the closed expression
 before emitting it, with a 10,000-step evaluation budget. All numeric operands
 and intermediate results must be exact integers between ±(2^53−1). Functions
 must eventually return an integer or boolean. This is deliberately stricter
 than each individual runtime.
 
-Scheme `let*` corresponds to Clojure `let`; Scheme parallel `let` is rejected.
+Scheme `let*` corresponds to Clojure `let`; unnamed parallel `let` is rejected.
+Named-let initializers retain their parallel scope, while Clojure loop
+initializers remain sequential. Tail calls have checked arity and cannot cross
+a function or nested-loop boundary in the common contract. Function-level
+`recur` remains part of the separate exact-native contract. Infinite loops and
+loops that exceed the verification budget or integer range are rejected.
+
+The target emitters preserve simultaneous recur rebinding and iteration-local
+closure capture. On the tested Jank runtime, even plain `let` aliases in a
+variable swap observe rebinding; the emitter materializes argument values
+through identity calls. Basilisp and Squint closures use explicit factory
+calls to capture current values instead of changing loop cells. Generated
+names avoid all source names. These adaptations add overhead; no speed claim
+is made. The source profiles use these stated Clojure lexical invariants,
+including where a raw host runtime differs.
 Tests must be recognizably boolean because Scheme and Clojure truthiness differ.
 Namespaces, definitions, macros, reader extensions, foreign interop, effects,
-collection values, recursive programs, and the full numeric tower are outside
+collection values, general recursive programs, and the full numeric tower are outside
 this subset and are rejected. This does not translate arbitrary applications.
 
 ```sh
@@ -37,7 +52,7 @@ use this compilation path. The runtime checker checks actual output separately
 from IR roundtrips, and writes `results/transitions.json`. Unavailable runtimes
 are reported as unverified, never as passing. `--require-all` turns any missing
 runtime or native compiler into a failing check. All eight profiles now have
-execution adapters and pass the checked-in fixture suite: 448 executions across
+execution adapters and pass the checked-in fixture suite: 952 executions across
 56 ordered pairs. This is evidence for the admitted subset, not full dialect
 conformance.
 
@@ -175,7 +190,7 @@ loop from both syntaxes and runs 40-step Momentum and Adam trajectories in the
 resulting executables.
 
 This mode does not claim arbitrary namespaces, macros, effects, general
-recursion, or application translation, and does not expand the common contract
+recursion, or application translation, and extends beyond the bounded common-loop contract
 of the other dialect pairs.
 
 ## Categorical interpretation and its limits
