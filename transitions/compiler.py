@@ -250,7 +250,7 @@ def emit(ir,profile, *, exact=False):
             if kind=='native-pair':return '(call-with-values (lambda () ('+name+' '+args+')) list)'
             if n[1]=='list-ref':return '(aella-data-ref '+args+')'
             if n[1] in ('cx-norm','cx-valuation'):
-                return "(cx-dispatch (list '"+n[1][3:]+' '+args+'))'
+                return '(aella-padic-'+n[1][3:]+' '+args+')'
             return '('+name+' '+args+')'
         if kind=='call':return '('+go(n[1])+(' ' if n[2] else '')+' '.join(go(v) for v in n[2])+')'
         raise Unsupported('Unknown IR node')
@@ -259,7 +259,7 @@ def emit(ir,profile, *, exact=False):
 def transition(source,source_profile,target_profile):
     return emit(lower(source,source_profile),target_profile)
 
-def native_program(expression, parameters, numeric_library=None):
+def native_program(expression, parameters, numeric_library=None, *, prune=True):
     prelude = """(define (aella-exact x)
   (if (and (number? x) (exact? x)) x (error "Expected an exact number")))
 (define (aella-op op . args) (apply op (map aella-exact args)))
@@ -269,13 +269,17 @@ def native_program(expression, parameters, numeric_library=None):
     for name in sorted(SRFI141_NAMES):
         if '(aella-srfi-'+name+' ' in expression:
             prelude+='(define aella-srfi-'+name+' '+name+')\n'
-    uses_library=bool(re.search(r'\(cx-',expression))
+    for name in ('norm','valuation'):
+        if '(aella-padic-'+name+' ' in expression:
+            prelude+='(define (aella-padic-'+name+' p x) (if (cx-prime? p) (cx-'+name+' p x) (error "Expected prime base")))\n'
+    uses_library=bool(re.search(r'\((?:cx-|aella-padic-)',expression))
     if uses_library and numeric_library is None:
         raise Unsupported('P-adic compilation requires --numeric-library pointing to Cossack gambit/numeric.scm')
     if numeric_library is not None:
         library=Path(numeric_library).resolve(strict=True)
         if uses_library:prelude='(include '+json.dumps(str(library))+')\n'+prelude
-    return prelude+'(if (not (= (length aella-args) '+str(len(parameters))+')) (error "Wrong argument count"))\n'+ '(call-with-values (lambda () (apply (lambda ('+' '.join(parameters)+') '+expression+') aella-args)) (lambda aella-results (write (if (= (length aella-results) 1) (car aella-results) aella-results)))) (newline)\n'
+    declaration='(declare (optimize-dead-definitions))\n' if prune else ''
+    return declaration+prelude+'(if (not (= (length aella-args) '+str(len(parameters))+')) (error "Wrong argument count"))\n'+ '(call-with-values (lambda () (apply (lambda ('+' '.join(parameters)+') '+expression+') aella-args)) (lambda aella-results (write (if (= (length aella-results) 1) (car aella-results) aella-results)))) (newline)\n'
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
@@ -286,16 +290,18 @@ def main():
     p.add_argument('--gsc',default='gsc')
     p.add_argument('--numeric-library',type=Path,help='Cossack gambit/numeric.scm for native p-adic operations')
     p.add_argument('--exact',action='store_true',help='Compile dynamic exact numeric arithmetic to Gambit')
+    p.add_argument('--keep-unused-definitions',action='store_true',help='Preserve all top-level definitions instead of pruning a standalone exact kernel')
     p.add_argument('--parameters',nargs='*',default=[],help='Names of exact numeric executable arguments')
     args=p.parse_args()
     if args.parameters and not args.exact:p.error('--parameters requires --exact')
+    if args.keep_unused_definitions and not args.exact:p.error('--keep-unused-definitions requires --exact')
     result=emit(lower(args.file.read_text(),args.source,exact=args.exact,parameters=args.parameters),args.target,exact=args.exact)
     if args.compile_to:
         if args.target!='gambit':p.error('--compile-to requires --to gambit')
         args.compile_to.parent.mkdir(parents=True,exist_ok=True)
         import tempfile
         with tempfile.TemporaryDirectory(prefix='aella-gambit-') as tmp:
-            src=Path(tmp)/'program.scm';src.write_text(native_program(result,args.parameters,args.numeric_library) if args.exact else '(write '+result+') (newline)\n')
+            src=Path(tmp)/'program.scm';src.write_text(native_program(result,args.parameters,args.numeric_library,prune=not args.keep_unused_definitions) if args.exact else '(write '+result+') (newline)\n')
             subprocess.run([args.gsc,'-exe','-o',str(args.compile_to.resolve()),str(src)],check=True)
-    else:print(native_program(result,args.parameters,args.numeric_library) if args.exact else result)
+    else:print(native_program(result,args.parameters,args.numeric_library,prune=not args.keep_unused_definitions) if args.exact else result)
 if __name__=='__main__':main()

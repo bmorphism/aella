@@ -121,6 +121,19 @@ returns a rational approximation with an explicit p-adic error bound. See the
 shared backend's `GAMBIT.md` for the distinction between representative data
 and hull invariants. The zero-radius predicate is accepted in native conditions.
 Unused p-adic code is not included in purely numeric executables.
+Standalone exact programs also enable Gambit's `optimize-dead-definitions`,
+so importing the shared numeric library need not retain every uncalled helper.
+The admitted programs are closed and the shared library's top-level definitions
+are procedures. Use `--keep-unused-definitions` when a custom library relies on
+otherwise-unused definition initializers or definitions consumed elsewhere.
+`tools/benchmark_native_pruning.py` compares identical expansion kernels with
+and without this declaration, checking results while recording compilation
+time and executable size. It does not measure runtime throughput.
+The recorded [paired run](../results/native-pruning.json) compiled a 32-digit
+expansion kernel in 215.98 seconds without pruning and 4.45 seconds with it;
+executable size was 833,048 versus 103,736 bytes. This is one run on a shared
+host, with dynamically linked library size excluded. Checked norm/valuation
+wrappers preserve prime validation without retaining the whole dispatcher.
 All 18 SRFI 141 division procedures also compile directly to Gambit's built-ins.
 The Clojure surface uses `srfi.141/<name>`; Scheme uses the original unqualified
 names. Cossack's pair-returning forms become numeric data, while Scheme's

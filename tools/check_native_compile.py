@@ -14,6 +14,8 @@ a=p.parse_args()
 if a.compile_timeout<=0:p.error('--compile-timeout must be positive')
 if a.only and not a.output:p.error("--only requires --output to keep partial results separate")
 fixtures=[
+ ('prime-check','[(cossack.padic/norm x 1/9) (cossack.padic/valuation x 1/9)]',
+  '(list (cx-norm x 1/9) (cx-valuation x 1/9))',[('3','(9 -2)'),('5','(1 0)')]),
  ('representation','(let [d (cossack.padic/disk 3 x 1/3) e (cossack.padic/expansion 3 x 4)] [(cossack.padic/prime d) (cossack.padic/center d) (cossack.padic/radius d) (cossack.padic/point? d) (if (cossack.padic/point? (cossack.padic/disk 3 x 0)) 7 9) (cossack.padic/center-norm d) (cossack.padic/seminorm d) (cossack.padic/center (cossack.padic/neg d)) (cossack.padic/radius (cossack.padic/sub d d)) (cossack.padic/decompose 3 x) e (cossack.padic/from-expansion 3 e)])',
   '(let* ((d (cx-disk 3 x 1/3)) (e (cx-expansion 3 x 4))) (list (cx-disk-prime d) (cx-disk-center d) (cx-disk-radius d) (cx-disk-point? d) (if (cx-disk-point? (cx-disk 3 x 0)) 7 9) (cx-disk-center-norm d) (cx-disk-seminorm d) (cx-disk-center (cx-disk-neg d)) (cx-disk-radius (cx-disk-sub d d)) (cx-decompose 3 x) e (cx-from-expansion 3 e)))',
   [('-1','(3 -1 1/3 #f 7 1 1 1 1/3 (-1 0) (0 (2 2 2 2)) 80)'),('1/6','(3 1/6 1/3 #f 7 3 3 -1/6 1/3 (1/2 -1) (-1 (2 1 1 1)) 41/3)'),('0','(3 0 1/3 #f 7 0 1/3 0 1/3 (0 0) (0 (0 0 0 0)) 0)')]),
@@ -56,7 +58,7 @@ if a.only:
  names=set(a.only.split(','))
  if not names <= {f[0] for f in fixtures}:p.error('Unknown fixture name')
  fixtures=[f for f in fixtures if f[0] in names]
-executions=0
+executions=0;invalid=0
 with tempfile.TemporaryDirectory(prefix='aella-native-') as tmp:
  tmp=Path(tmp)
  for name,clj,scm,cases in fixtures:
@@ -68,10 +70,13 @@ with tempfile.TemporaryDirectory(prefix='aella-native-') as tmp:
     actual=subprocess.check_output([str(exe),arg],text=True,timeout=10).strip()
     assert actual==expected,(name,syntax,arg,expected,actual)
     executions+=1
-   for bad in [[],['0.5'],['(exit 9)']]:
+   bad_arguments=[[],['0.5'],['(exit 9)']]
+   if name=='prime-check':bad_arguments += [['4'],['0'],['-3'],['3/2'],['1+2i']]
+   for bad in bad_arguments:
     result=subprocess.run([str(exe),*bad],capture_output=True,text=True,timeout=10)
     assert result.returncode!=0,(name,syntax,bad,result.stdout)
+    invalid+=1
    print('PASS',name,syntax,flush=True)
-report={'compiled_programs':len(fixtures)*2,'runtime_value_checks':executions,'invalid_argument_checks':len(fixtures)*6,'frontends':['cossack','gambit'],'numbers':'exact integers, rationals, complex; shared Cossack p-adic library'}
+report={'compiled_programs':len(fixtures)*2,'runtime_value_checks':executions,'invalid_argument_checks':invalid,'frontends':['cossack','gambit'],'numbers':'exact integers, rationals, complex; shared Cossack p-adic library'}
 (a.output or ROOT/'results/native-compilation.json').write_text(json.dumps(report,indent=2)+'\n')
 print(report)

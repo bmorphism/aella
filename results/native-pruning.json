@@ -1,0 +1,29 @@
+{
+  "kernel": "32-digit exact rational p-adic expansion",
+  "measurements": {
+    "unpruned": {
+      "compile_seconds": 215.978179917,
+      "executable_bytes": 833048,
+      "source_sha256": "d185b6b419cffabe93df6d80df5fda670a35b477e22c24f1a50c73b728ad042f",
+      "checked_inputs": 4
+    },
+    "pruned": {
+      "compile_seconds": 4.452094999999986,
+      "executable_bytes": 103736,
+      "source_sha256": "415c1055a9f15681e93b1f462de9d09c497729c7366ea86577086f5f2f881ebd",
+      "checked_inputs": 4
+    }
+  },
+  "compile_time_ratio": 48.511583853669045,
+  "executable_size_ratio": 8.030461941852394,
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "gsc": "/Users/barton/worlds/cossack-lisp/target/gambit-install/bin/gsc",
+  "library_dependencies": {
+    "/Users/barton/worlds/cossack-lisp/gambit/numeric.scm": "c35cc3681edfed94b391aba344785a9952c472339a1382a77972d1af5057a97d",
+    "/Users/barton/worlds/cossack-lisp/gambit/polynomial.scm": "aa2607e37d3295f8d5f247e81ef6df149f585a5e72f278599f28e973cedb32e4",
+    "/Users/barton/worlds/cossack-lisp/gambit/optimizer.scm": "4a7f1a6ee647cd9882848cd1db8160986627f94e5e7af7f9147bf9f1dbc39a40",
+    "/Users/barton/worlds/cossack-lisp/gambit/training.scm": "3b80f6219d32669ec914f1bcf0ee644a143c70f1db282b1f285006e43bbcc29a",
+    "/Users/barton/worlds/cossack-lisp/gambit/representation.scm": "53bd280f99453d519113b44d85f78803ae4029ad566e15dad8c1973014f9f6f7"
+  },
+  "method": "One paired build on a shared host; identical sources except declaration. Dynamic library size excluded. No runtime throughput comparison."
+}
