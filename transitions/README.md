@@ -160,6 +160,16 @@ These division calls retain the integer-argument and nonzero-divisor contract.
 `tools/check_native_srfi141.py` checks all procedures against an independent
 integer oracle and direct Gambit, including rounding ties, negative divisors,
 and integers exceeding 4,096 bits. No p-adic library is needed for these calls.
+The exact-native compiler exposes `cossack.padic/classification-probabilities`,
+`classification-loss`, and `classification-slope`, with Scheme names prefixed
+`cx-`. These temperature-one heads take class disks; loss adds a class label,
+and slope takes radial velocities before the label. Probabilities and
+cross-entropy directional derivatives remain exact rationals. The loss itself
+uses a floating logarithm and is therefore inexact; it can be returned directly
+but cannot be passed to this compiler's exact-only arithmetic operators.
+Zero seminorms are rejected as singular. `tools/check_native_classification.py`
+checks both source syntaxes with runtime parameters, including 4,097-bit radii and losses near zero.
+
 Exact-native mode also compiles shaped p-adic arrays through the shared
 library: `cossack.padic/array`, `array-add`, `array-sub`, `array-mul`,
 `array-neg`, and `array-power` (Scheme names `cx-array`, etc.). Construction
