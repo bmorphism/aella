@@ -14,6 +14,7 @@ Directory layout:
 - `docs/`            - Notes and examples
 - `rascal/Aellith.rsc` - Rascal grammar for Aellith conlang
 - `antlr/Aellith.g4`   - ANTLR4 grammar for Aellith conlang
+- `transitions/`      - [Checked pairwise expression compiler](transitions/README.md) for seven Clojure-family profiles and Gambit
 
 ## Features and taxonomy
 

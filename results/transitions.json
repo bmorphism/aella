@@ -1,0 +1,66 @@
+{
+  "fixtures": 17,
+  "profiles": [
+    "clojure",
+    "babashka",
+    "jank",
+    "cossack",
+    "clojurescript-nbb",
+    "basilisp",
+    "squint",
+    "gambit"
+  ],
+  "ordered_pairs": 56,
+  "runtimes": {
+    "clojure": {
+      "status": "passed",
+      "executable": "clojure",
+      "expressions": 119
+    },
+    "babashka": {
+      "status": "passed",
+      "executable": "bb",
+      "expressions": 119
+    },
+    "jank": {
+      "status": "passed",
+      "executable": "jank",
+      "expressions": 119
+    },
+    "cossack": {
+      "status": "passed",
+      "executable": "cossack",
+      "expressions": 119
+    },
+    "clojurescript-nbb": {
+      "status": "passed",
+      "executable": "cli.js",
+      "expressions": 119
+    },
+    "basilisp": {
+      "status": "passed",
+      "executable": "basilisp",
+      "expressions": 119,
+      "version": "Basilisp 0.5.1"
+    },
+    "squint": {
+      "status": "passed",
+      "executable": "node_cli.js",
+      "expressions": 119,
+      "runtime_package_version": "0.14.210"
+    },
+    "gambit": {
+      "status": "passed",
+      "executable": "gsi",
+      "expressions": 119
+    }
+  },
+  "gambit_compilation": {
+    "status": "passed",
+    "frontends": [
+      "clojure",
+      "gambit"
+    ],
+    "programs": 4
+  }
+}

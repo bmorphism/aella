@@ -1,0 +1,10 @@
+{
+  "compiled_programs": 36,
+  "runtime_value_checks": 76,
+  "invalid_argument_checks": 108,
+  "frontends": [
+    "cossack",
+    "gambit"
+  ],
+  "numbers": "exact integers, rationals, complex; shared Cossack p-adic library"
+}
