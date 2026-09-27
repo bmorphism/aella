@@ -32,6 +32,9 @@ class Transitions(unittest.TestCase):
  def test_native_contract_rejections(self):
   for text,profile,parameters in [
       ('(+ x 1)','cossack',['x']), ('1N','gambit',[]),
+      ('(srfi.141/floor/ 1)','cossack',[]),
+      ('(call-with-values (lambda () 1))','gambit',[]),
+      ('(let [call-with-values 1] call-with-values)','cossack',[]),
       ('(nth [1 2] 1/2)','cossack',[]), ('(nth [1 2] x)','cossack',['x']),
       ('(list-ref (list 1 2) -1)','gambit',[]),
       ("(+' 1 2)",'gambit',[]), ('(if x 1 2)','cossack',['x']),

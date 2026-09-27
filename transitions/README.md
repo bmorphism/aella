@@ -115,6 +115,17 @@ affine active-term groups, conservative general polynomial groups, persistent
 awaiting-turn marks, explicit draws, and simultaneous first-vertex clipping.
 Joint direction selection and minimal nonlinear coupling groups remain unfinished.
 Unused p-adic code is not included in purely numeric executables.
+All 18 SRFI 141 division procedures also compile directly to Gambit's built-ins.
+The Clojure surface uses `srfi.141/<name>`; Scheme uses the original unqualified
+names. Cossack's pair-returning forms become numeric data, while Scheme's
+`<mode>/` procedures retain multiple values. Scheme `call-with-values` supports
+lambda consumers and `list`; the executable boundary prints a sole result
+directly and multiple results as a Scheme list. This preserves the distinction
+between a Cossack pair and Scheme multiple values inside the compiled program.
+These division calls retain the integer-argument and nonzero-divisor contract.
+`tools/check_native_srfi141.py` checks all procedures against an independent
+integer oracle and direct Gambit, including rounding ties, negative divisors,
+and integers exceeding 4,096 bits. No p-adic library is needed for these calls.
 This mode does not claim arbitrary namespace, macro, effect, or recursive-program
 support, and does not expand the common contract of the other dialect pairs.
 

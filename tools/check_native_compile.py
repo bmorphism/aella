@@ -14,6 +14,8 @@ a=p.parse_args()
 if a.compile_timeout<=0:p.error('--compile-timeout must be positive')
 if a.only and not a.output:p.error("--only requires --output to keep partial results separate")
 fixtures=[
+ ('native-shadow',"(let [list-ref (fn [n] (+' n x)) floor-quotient (fn [n] (+' n 1))] (+' (list-ref 40) (+' (floor-quotient (nth [0 1] 0)) (srfi.141/floor-quotient 3 2))))",
+  '(let* ((list-ref (lambda (n) (+ n x))) (floor-quotient (lambda (n) (+ n 1)))) (+ (list-ref 40) (+ (floor-quotient 0) (call-with-values (lambda () (floor/ 3 2)) (lambda (q r) q)))))',[('0','42'),('3','45')]),
  ('grouped-training', '(let [a (cossack.padic/network-train-step [] [(cossack.padic/disk 3 0 1/2) (cossack.padic/disk 3 0 2/5)] [0 0] x [0 0 0 1/100] [] [[0 0] [0 0]])] (cossack.padic/network-loss [] (nth a 0) [0 0]))',
   '(let* ((a (cx-network-train-step (list) (list (cx-disk 3 0 1/2) (cx-disk 3 0 2/5)) (list 0 0) x (list 0 0 0 1/100) (list) (list (list 0 0) (list 0 0))))) (cx-network-loss (list) (list-ref a 0) (list 0 0)))',[('1/10','2/5'),('1','23/60')]),
  ('momentum-state', '(let [a (cossack.padic/network-optimizer-step [] [(cossack.padic/disk 3 0 1/2)] [0] 0 x [0 1/2 1/2 1/100] [] 0) b (cossack.padic/network-optimizer-step [] [(nth a 0)] [0] 0 x [0 1/2 1/2 1/100] (nth a 1) 0)] (cossack.padic/distance (nth b 0) (cossack.padic/disk 3 0 0)))',

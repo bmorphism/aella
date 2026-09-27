@@ -15,6 +15,9 @@ import subprocess
 PROFILES=('clojure','babashka','jank','cossack','clojurescript-nbb','basilisp','squint','gambit')
 OPS={'+','-','*','=','<','<=','>','>=','not'}
 EXACT_OPS={"+'":'+',"-'":'-',"*'":'*','/':'/'}
+SRFI141_MODES=('balanced','ceiling','floor','round','truncate','euclidean')
+SRFI141_PAIRS={mode+'/' for mode in SRFI141_MODES}
+SRFI141_NAMES={mode+suffix for mode in SRFI141_MODES for suffix in ('/','-quotient','-remainder')}
 NATIVE_OPS={
  'cossack.padic/network-groups':('cx-network-groups',3),
  'cossack.padic/network-train-step':('cx-network-train-step',7),
@@ -39,12 +42,18 @@ NATIVE_OPS={
  'cossack.padic/norm':('cx-norm',2),
  'cossack.padic/valuation':('cx-valuation',2),
 }
+NATIVE_OPS.update({'srfi.141/'+mode+suffix:(mode+suffix,2)
+                  for mode in SRFI141_MODES for suffix in ('/','-quotient','-remainder')})
 RESERVED=OPS|set(EXACT_OPS)|set(NATIVE_OPS)|{v[0] for v in NATIVE_OPS.values()}|{'if','let','let*','fn','lambda','inc','dec','true','false','#t','#f',
-    'list','nil','def','quote','var','do','try','throw','catch','finally','loop','loop*',
+    'list','call-with-values','nil','def','quote','var','do','try','throw','catch','finally','loop','loop*',
     'recur','new','set!','monitor-enter','monitor-exit','deftype*','reify*','case*',
     'import*','fn*','define','begin','quasiquote','unquote','unquote-splicing',
     'cond','and','or','case','delay','letrec','letrec*','let-values','let*-values',
     'define-syntax','let-syntax','letrec-syntax','syntax-rules'}
+# Preserve lexical list-ref bindings accepted before native data access existed.
+# Native projections use a private alias to prevent capture by those bindings.
+RESERVED.discard('list-ref')
+RESERVED.difference_update(SRFI141_NAMES)
 class Unsupported(ValueError): pass
 @dataclass(frozen=True)
 class Sym:
@@ -106,13 +115,18 @@ def lower(source, profile, *, exact=False, parameters=()):
         head=x[0].name if isinstance(x[0],Sym) else None
         args=x[1:]
         if exact and scheme and head=='list':return ('data-list',tuple(walk(a,env) for a in args))
+        if exact and scheme and head=='call-with-values':
+            if len(args)!=2:raise Unsupported('call-with-values requires producer and consumer')
+            consumer=('list-function',) if args[1]==Sym('list') else walk(args[1],env)
+            return ('call-values',walk(args[0],env),consumer)
         native_ops={v[0]:v for v in NATIVE_OPS.values()} if scheme else NATIVE_OPS
-        if exact and head in native_ops:
+        if exact and head in native_ops and head not in env:
             name,arity=native_ops[head]
             if len(args)!=arity:raise Unsupported('Wrong native operation arity: '+head)
             if name=='list-ref' and (not isinstance(args[1],int) or args[1]<0):
                 raise Unsupported('Native data access requires a nonnegative literal integer index')
-            return ('native',name,tuple(walk(a,env) for a in args))
+            kind='native-pair' if not scheme and name in SRFI141_PAIRS else 'native'
+            return (kind,name,tuple(walk(a,env) for a in args))
         if head==('let*' if scheme else 'let'):
             if len(args)!=2:raise Unsupported('let requires bindings and one body expression')
             if scheme:
@@ -208,6 +222,8 @@ def emit(ir,profile, *, exact=False):
         kind=n[0]
         if kind=='int':return str(n[1])
         if kind=='data-list':return '(list'+(' ' if n[1] else '')+' '.join(go(v) for v in n[1])+')'
+        if kind=='list-function':return 'list'
+        if kind=='call-values':return '(call-with-values '+go(n[1])+' '+go(n[2])+')'
         if kind=='ratio':return str(n[1])+'/'+str(n[2])
         if kind=='bool':return ('#t' if n[1] else '#f') if scheme else ('true' if n[1] else 'false')
         if kind=='var':return n[1]
@@ -217,11 +233,14 @@ def emit(ir,profile, *, exact=False):
         if kind=='fn':return ('(lambda (' if scheme else '(fn [')+' '.join(n[1])+(') ' if scheme else '] ')+go(n[2])+')'
         if kind=='if':return '(if '+' '.join(go(v) for v in n[1:])+')'
         if kind=='op':return '('+('aella-op '+n[1] if exact and n[1]!='not' else n[1])+' '+' '.join(go(v) for v in n[2])+')'
-        if kind=='native':
+        if kind in ('native','native-pair'):
             args=' '.join(go(v) for v in n[2])
+            name='aella-srfi-'+n[1] if n[1] in SRFI141_NAMES else n[1]
+            if kind=='native-pair':return '(call-with-values (lambda () ('+name+' '+args+')) list)'
+            if n[1]=='list-ref':return '(aella-data-ref '+args+')'
             if n[1] in ('cx-norm','cx-valuation'):
                 return "(cx-dispatch (list '"+n[1][3:]+' '+args+'))'
-            return '('+n[1]+' '+args+')'
+            return '('+name+' '+args+')'
         if kind=='call':return '('+go(n[1])+(' ' if n[2] else '')+' '.join(go(v) for v in n[2])+')'
         raise Unsupported('Unknown IR node')
     return go(ir)
@@ -233,15 +252,19 @@ def native_program(expression, parameters, numeric_library=None):
     prelude = """(define (aella-exact x)
   (if (and (number? x) (exact? x)) x (error "Expected an exact number")))
 (define (aella-op op . args) (apply op (map aella-exact args)))
+(define aella-data-ref list-ref)
 (define aella-args (map (lambda (s) (aella-exact (string->number s))) (cdr (command-line))))
 """
+    for name in sorted(SRFI141_NAMES):
+        if '(aella-srfi-'+name+' ' in expression:
+            prelude+='(define aella-srfi-'+name+' '+name+')\n'
     uses_library=bool(re.search(r'\(cx-',expression))
     if uses_library and numeric_library is None:
         raise Unsupported('P-adic compilation requires --numeric-library pointing to Cossack gambit/numeric.scm')
     if numeric_library is not None:
         library=Path(numeric_library).resolve(strict=True)
         if uses_library:prelude='(include '+json.dumps(str(library))+')\n'+prelude
-    return prelude+'(if (not (= (length aella-args) '+str(len(parameters))+')) (error "Wrong argument count"))\n'+ '(write (apply (lambda ('+' '.join(parameters)+') '+expression+') aella-args)) (newline)\n'
+    return prelude+'(if (not (= (length aella-args) '+str(len(parameters))+')) (error "Wrong argument count"))\n'+ '(call-with-values (lambda () (apply (lambda ('+' '.join(parameters)+') '+expression+') aella-args)) (lambda aella-results (write (if (= (length aella-results) 1) (car aella-results) aella-results)))) (newline)\n'
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
