@@ -1,0 +1,12 @@
+{
+  "compiled_programs": 2,
+  "runtime_value_checks": 8,
+  "invalid_argument_checks": 8,
+  "optimizers": [
+    "Momentum",
+    "Adam"
+  ],
+  "training_steps": 40,
+  "loss_threshold": "1/1000",
+  "execution": "Whole loop in native executable; no Cossack/Python interpreter needed for evaluation"
+}

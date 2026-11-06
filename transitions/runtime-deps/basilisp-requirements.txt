@@ -1,0 +1,7 @@
+attrs==26.1.0
+basilisp==0.5.1
+immutables==0.21
+prompt-toolkit==3.0.53
+pyrsistent==0.20.0
+typing-extensions==4.16.0
+wcwidth==0.9.1

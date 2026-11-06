@@ -1,0 +1,8 @@
+{
+  "compiled_programs": 20,
+  "runtime_value_checks": 40,
+  "jvm_reference_checks": 20,
+  "largest_iteration_count": 100000,
+  "initializers": "Clojure sequential; Scheme parallel",
+  "checks": "tail calls, simultaneous rebinding, closures, nested and function recursion, lexical shadowing"
+}

@@ -1,0 +1,14 @@
+{
+  "compiled_programs": 4,
+  "procedures": 18,
+  "division_cases": 88,
+  "compiled_result_comparisons": 3344,
+  "direct_gambit_oracle_comparisons": 1584,
+  "invalid_argument_checks": 32,
+  "largest_input_bits": 4097,
+  "frontends": [
+    "cossack",
+    "gambit"
+  ],
+  "multiple_values": "Scheme preserved; Cossack pairs collected"
+}
